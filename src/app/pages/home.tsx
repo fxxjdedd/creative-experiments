@@ -8,6 +8,12 @@ const effects = [
     description: "A mesmerizing color wave animation using ShaderToy",
     thumbnail: "/thumbnails/demo.jpg",
   },
+  {
+    id: "spotted",
+    title: "Spotted Pattern",
+    description: "将图片转换为动态流动的斑点效果",
+    thumbnail: "/thumbnails/spotted.jpg",
+  },
 ];
 
 const Home = () => {

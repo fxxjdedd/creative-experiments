@@ -11,10 +11,16 @@ export class ShaderToyRunner {
   private pauseTime: number = 0;
   private isPlaying: boolean = true;
   private animationFrameId: number | null = null;
+  private textureLoader: THREE.TextureLoader;
 
-  constructor(container: HTMLCanvasElement, fragmentShader: string) {
+  constructor(
+    container: HTMLCanvasElement,
+    fragmentShader: string,
+    textureList: string[] = []
+  ) {
     // Initialize scene
     this.scene = new THREE.Scene();
+    this.textureLoader = new THREE.TextureLoader();
 
     // Setup camera
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -44,11 +50,25 @@ export class ShaderToyRunner {
       iMouse: { value: new THREE.Vector4() },
     };
 
+    // Create empty textures first and add them to uniforms
+    textureList.forEach((_, index) => {
+      this.uniforms[`iChannel${index}`] = { value: null };
+    });
+
+    // Then load textures and update them when ready
+    textureList.forEach((url, index) => {
+      this.textureLoader.load(url, (texture) => {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        this.uniforms[`iChannel${index}`].value = texture;
+      });
+    });
+
     // ShaderToy uniforms declaration
     const uniformsDeclaration = `
 uniform float iTime;
 uniform vec3 iResolution;
 uniform vec4 iMouse;
+${textureList.map((_, i) => `uniform sampler2D iChannel${i};`).join("\n")}
     `;
 
     // Inject utility functions and main function into shader code
@@ -138,6 +158,15 @@ void main() {
   }
 
   public dispose(): void {
+    // Dispose textures
+    for (const key in this.uniforms) {
+      if (
+        key.startsWith("iChannel") &&
+        this.uniforms[key].value instanceof THREE.Texture
+      ) {
+        this.uniforms[key].value.dispose();
+      }
+    }
     this.mesh.geometry.dispose();
     (this.mesh.material as THREE.ShaderMaterial).dispose();
     this.renderer.dispose();

@@ -1,6 +1,4 @@
-import { ShaderToyRunner } from "../../shadertoy-runner";
-
-export default /*glsl*/ `
+export const glsl = /*glsl*/ `
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     // Normalized pixel coordinates (from 0 to 1)
