@@ -90,7 +90,7 @@ export class ShaderToyRunner {
         uniform float iTime;
         uniform vec3 iResolution;
         uniform vec4 iMouse;
-        uniform float iFrame;
+        uniform int iFrame;
         ${Array(textureList.length + numBuffers)
           .fill(0)
           .map((_, i) => `uniform sampler2D iChannel${i};`)
