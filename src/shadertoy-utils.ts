@@ -38,4 +38,15 @@ float smootherstep(float edge0, float edge1, float x) {
     x = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
     return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
 }
+
+// Angle conversions
+float deg2rad(float deg) {
+    return deg * 3.14159265359 / 180.0;
+}
+
+float rad2deg(float rad) {
+    return rad * 180.0 / 3.14159265359;
+}
+
+
 `;

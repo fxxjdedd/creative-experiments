@@ -6,17 +6,20 @@ export class ShaderToyRunner {
   private camera: THREE.OrthographicCamera;
   private renderer: THREE.WebGLRenderer;
   private uniforms: { [key: string]: THREE.IUniform };
-  private mesh: THREE.Mesh;
   private startTime: number;
   private pauseTime: number = 0;
   private isPlaying: boolean = true;
   private animationFrameId: number | null = null;
   private textureLoader: THREE.TextureLoader;
 
+  private bufferTextures: THREE.WebGLRenderTarget[] = [];
+  private bufferMeshes: THREE.Mesh[] = [];
+  private currentFrame: number = 0;
+
   constructor(
     container: HTMLCanvasElement,
-    fragmentShader: string,
-    textureList: string[] = []
+    shaders: string[], // 改为接收shader数组
+    textureList: string[] = [] // 只包含外部纹理
   ) {
     // Initialize scene
     this.scene = new THREE.Scene();
@@ -32,7 +35,7 @@ export class ShaderToyRunner {
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(1); // 设置为1以匹配container尺寸
+    this.renderer.setPixelRatio(1);
 
     // Initialize time
     this.startTime = Date.now();
@@ -48,58 +51,83 @@ export class ShaderToyRunner {
         ),
       },
       iMouse: { value: new THREE.Vector4() },
+      iFrame: { value: 0 },
     };
 
-    // Create empty textures first and add them to uniforms
-    textureList.forEach((_, index) => {
-      this.uniforms[`iChannel${index}`] = { value: null };
-    });
+    // Create render targets for all intermediate buffers
+    const numBuffers = Math.max(0, shaders.length - 1); // 最后一个shader直接输出到屏幕
+    for (let i = 0; i < numBuffers; i++) {
+      const renderTarget = new THREE.WebGLRenderTarget(
+        container.clientWidth,
+        container.clientHeight,
+        {
+          minFilter: THREE.NearestFilter,
+          magFilter: THREE.NearestFilter,
+          format: THREE.RGBAFormat,
+          type: THREE.FloatType,
+        }
+      );
+      this.bufferTextures.push(renderTarget);
 
-    // Then load textures and update them when ready
+      // Add the buffer texture as a channel
+      this.uniforms[`iChannel${textureList.length + i}`] = {
+        value: renderTarget.texture,
+      };
+    }
+
+    // Setup external textures
     textureList.forEach((url, index) => {
+      this.uniforms[`iChannel${index}`] = { value: null };
       this.textureLoader.load(url, (texture) => {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
         this.uniforms[`iChannel${index}`].value = texture;
       });
     });
 
-    // ShaderToy uniforms declaration
-    const uniformsDeclaration = `
-uniform float iTime;
-uniform vec3 iResolution;
-uniform vec4 iMouse;
-${textureList.map((_, i) => `uniform sampler2D iChannel${i};`).join("\n")}
-    `;
+    // Create shader materials and meshes for each pass
+    shaders.forEach((shaderCode, index) => {
+      const uniformsDeclaration = `
+        uniform float iTime;
+        uniform vec3 iResolution;
+        uniform vec4 iMouse;
+        uniform float iFrame;
+        ${Array(textureList.length + numBuffers)
+          .fill(0)
+          .map((_, i) => `uniform sampler2D iChannel${i};`)
+          .join("\n")}
+      `;
 
-    // Inject utility functions and main function into shader code
-    const mainFunction = `
-void main() {
-    mainImage(gl_FragColor, gl_FragCoord.xy);
-}`;
-    const processedShader =
-      uniformsDeclaration +
-      "\n" +
-      VFX_UTILS +
-      "\n" +
-      (fragmentShader.includes("void main()")
-        ? fragmentShader
-        : fragmentShader + "\n" + mainFunction);
+      const mainFunction = `
+        void main() {
+          mainImage(gl_FragColor, gl_FragCoord.xy);
+        }
+      `;
 
-    // Create shader material
-    const material = new THREE.ShaderMaterial({
-      fragmentShader: processedShader,
-      uniforms: this.uniforms,
-      vertexShader: `
-                void main() {
-                    gl_Position = vec4(position, 1.0);
-                }
-            `,
+      const processedShader =
+        uniformsDeclaration +
+        "\n" +
+        VFX_UTILS +
+        "\n" +
+        shaderCode +
+        (shaderCode.includes("void main()") ? "" : "\n" + mainFunction);
+
+      const material = new THREE.ShaderMaterial({
+        fragmentShader: processedShader,
+        uniforms: this.uniforms,
+        vertexShader: `
+          void main() {
+            gl_Position = vec4(position, 1.0);
+          }
+        `,
+      });
+
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      const mesh = new THREE.Mesh(geometry, material);
+      this.bufferMeshes.push(mesh);
     });
 
-    // Create fullscreen quad
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.scene.add(this.mesh);
+    // Add the final mesh to the scene
+    this.scene.add(this.bufferMeshes[this.bufferMeshes.length - 1]);
 
     // Setup mouse events
     container.addEventListener("mousemove", this.onMouseMove.bind(this));
@@ -121,8 +149,21 @@ void main() {
 
     // Update uniforms
     this.uniforms.iTime.value = (Date.now() - this.startTime) * 0.001;
+    this.uniforms.iFrame.value = this.currentFrame++;
 
-    // Render
+    // Render each intermediate buffer
+    for (let i = 0; i < this.bufferTextures.length; i++) {
+      this.scene.remove(this.scene.children[0]);
+      this.scene.add(this.bufferMeshes[i]);
+
+      this.renderer.setRenderTarget(this.bufferTextures[i]);
+      this.renderer.render(this.scene, this.camera);
+    }
+
+    // Render final pass to screen
+    this.scene.remove(this.scene.children[0]);
+    this.scene.add(this.bufferMeshes[this.bufferMeshes.length - 1]);
+    this.renderer.setRenderTarget(null);
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -147,6 +188,7 @@ void main() {
   public reset(): void {
     this.startTime = Date.now();
     this.pauseTime = 0;
+    this.currentFrame = 0;
     if (!this.isPlaying) {
       this.play();
     }
@@ -155,10 +197,20 @@ void main() {
   public resize(width: number, height: number): void {
     this.renderer.setSize(width, height);
     this.uniforms.iResolution.value.set(width, height, 1);
+
+    this.bufferTextures.forEach((buffer) => {
+      buffer.setSize(width, height);
+    });
   }
 
   public dispose(): void {
-    // Dispose textures
+    this.bufferTextures.forEach((buffer) => buffer.dispose());
+
+    this.bufferMeshes.forEach((mesh) => {
+      mesh.geometry.dispose();
+      (mesh.material as THREE.ShaderMaterial).dispose();
+    });
+
     for (const key in this.uniforms) {
       if (
         key.startsWith("iChannel") &&
@@ -167,8 +219,7 @@ void main() {
         this.uniforms[key].value.dispose();
       }
     }
-    this.mesh.geometry.dispose();
-    (this.mesh.material as THREE.ShaderMaterial).dispose();
+
     this.renderer.dispose();
   }
 }

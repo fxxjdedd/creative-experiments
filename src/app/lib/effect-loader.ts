@@ -26,15 +26,11 @@ export class EffectLoader {
 
       // 动态导入效果
       const module = await import(`../../experiments/${id}/index.ts`);
-      const fragmentShader = module.glsl;
-      const buffers = module.buffers || [];
+      const shaders = module.shaders;
+      const textures = module.textures || [];
 
       // 创建新的效果，传入buffers作为第三个参数
-      this.runner = new ShaderToyRunner(
-        this.container,
-        fragmentShader,
-        buffers
-      );
+      this.runner = new ShaderToyRunner(this.container, shaders, textures);
     } catch (error) {
       console.error("Failed to load effect:", error);
     }
