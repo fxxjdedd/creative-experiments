@@ -48,5 +48,16 @@ float rad2deg(float rad) {
     return rad * 180.0 / 3.14159265359;
 }
 
+vec2 coord2uv(vec2 fragCoord) {
+    return (fragCoord * 2.0 - iResolution.xy) / min(iResolution.x, iResolution.y);
+}
 
+vec2 encodeFloatToVec2(float f) {
+    float scaled = 255.0 * clamp(f, 0.0, 1.0);
+    return vec2(floor(scaled) / 255.0, fract(scaled));
+}
+
+float decodeVec2ToFloat(vec2 v) {
+    return v.x + v.y / 255.0;
+}
 `;
