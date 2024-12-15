@@ -1,5 +1,7 @@
-export const main = /*glsl*/ `
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
+import { Shader } from "@/shadertoy-shader";
+
+const main = /*glsl*/ `
+void mainImage( out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor)
 {
     float a = 0.36;
     float b = 0.57;
@@ -16,5 +18,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 `;
 
-export const shaders = [main];
-export const textures = [];
+const shader = new Shader();
+shader.addMainPass(main);
+
+export default shader;

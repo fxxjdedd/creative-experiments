@@ -1,3 +1,4 @@
+import { Shader } from "@/shadertoy-shader";
 import { ShaderToyRunner } from "../../shadertoy-runner";
 
 export class EffectLoader {
@@ -26,11 +27,10 @@ export class EffectLoader {
 
       // 动态导入效果
       const module = await import(`../../experiments/${id}/index.ts`);
-      const shaders = module.shaders;
-      const textures = module.textures || [];
+      const shader = module.default as Shader;
 
       // 创建新的效果，传入buffers作为第三个参数
-      this.runner = new ShaderToyRunner(this.container, shaders, textures);
+      this.runner = new ShaderToyRunner(this.container, shader);
     } catch (error) {
       console.error("Failed to load effect:", error);
     }

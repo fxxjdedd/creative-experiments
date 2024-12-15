@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { VFX_UTILS } from "./shadertoy-utils";
-import { parseShader, BufferConfig } from "./shadertoy-parser";
+import { BufferConfig, Shader } from "./shadertoy-shader";
 
 export class ShaderToyRunner {
   private scene: THREE.Scene;
@@ -16,11 +16,7 @@ export class ShaderToyRunner {
   private bufferConfigs: BufferConfig[] = [];
   private currentFrame: number = 0;
 
-  constructor(
-    container: HTMLCanvasElement,
-    shaders: string[],
-    textureList: string[] = []
-  ) {
+  constructor(container: HTMLCanvasElement, shader: Shader) {
     this.scene = new THREE.Scene();
     this.textureLoader = new THREE.TextureLoader();
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -51,7 +47,8 @@ export class ShaderToyRunner {
     };
 
     // 设置外部纹理uniforms
-    textureList.forEach((url, index) => {
+    const externalTextures = shader.getTextures();
+    externalTextures.forEach((url, index) => {
       this.uniforms[`iChannel${index}`] = { value: null };
       this.textureLoader.load(url, (texture) => {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -60,9 +57,10 @@ export class ShaderToyRunner {
     });
 
     // 解析所有shader并创建对应的缓冲区配置
-    const numBuffers = shaders.length - 1; // 最后一个shader是输出
+    const bufferPasses = shader.getBufferPasses();
+    const numBuffers = bufferPasses.length; // 最后一个shader是输出
     for (let i = 0; i < numBuffers; i++) {
-      const metadata = parseShader(shaders[i]);
+      const { code, metadata } = bufferPasses[i];
 
       // 创建主缓冲区和debug缓冲区
       const frontTarget = new THREE.WebGLRenderTarget(
@@ -111,7 +109,7 @@ export class ShaderToyRunner {
 
       // 创建材质和mesh
       const uniformsDeclaration = this.generateUniformsDeclaration(
-        textureList.length,
+        externalTextures.length,
         numBuffers,
         i,
         metadata.isSwappable
@@ -131,8 +129,8 @@ export class ShaderToyRunner {
         "\n" +
         VFX_UTILS +
         "\n" +
-        metadata.code +
-        (metadata.code.includes("void main()") ? "" : "\n" + mainFunction);
+        code +
+        (code.includes("void main()") ? "" : "\n" + mainFunction);
 
       const material = new THREE.ShaderMaterial({
         fragmentShader: processedShader,
@@ -158,11 +156,14 @@ export class ShaderToyRunner {
     }
 
     // 创建最终输出的mesh
-    const finalMetadata = parseShader(shaders[shaders.length - 1]);
+    const mainPass = shader.getMainPass();
+    if (!mainPass) {
+      throw new Error("Main pass not found");
+    }
     const finalMaterial = new THREE.ShaderMaterial({
       fragmentShader: this.processShader(
-        finalMetadata.code,
-        textureList.length,
+        mainPass.code,
+        externalTextures.length,
         numBuffers
       ),
       uniforms: this.uniforms,
@@ -178,7 +179,7 @@ export class ShaderToyRunner {
       finalMaterial
     );
     this.bufferConfigs.push({
-      metadata: finalMetadata,
+      metadata: mainPass.metadata,
       frontTarget: null,
       backTarget: null,
       mesh: finalMesh,

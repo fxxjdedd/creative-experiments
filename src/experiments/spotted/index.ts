@@ -1,6 +1,8 @@
 // ref: https://groups.csail.mit.edu/mac/projects/amorphous/GrayScott/
 
-export const bufferA = /*glsl*/ `
+import { Shader } from "@/shadertoy-shader";
+
+const bufferA = /*glsl*/ `
 
 const float RATE_U = 0.210;
 const float RATE_V = 0.105;
@@ -42,9 +44,6 @@ vec2 computeLaplace(vec2 uv, float U, float V) {
     return discreteLaplace;
 }
 
-
-
-@swappable 5
 void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     vec2 uv = fragCoord/iResolution.xy;
     // vec2 uv = (coord2uv(fragCoord) + 1.0) / 2.0;
@@ -76,7 +75,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     // debugColor = vec4(reactionPossibility,0.0, 0.0, 1.0);
 }`;
 
-export const main = /*glsl*/ `
+const main = /*glsl*/ `
 void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     vec2 uv = fragCoord/iResolution.xy;
     vec4 original = texture2D(iGBuffer0, uv);  // Buffer A的原始结果
@@ -88,5 +87,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     fragColor = vec4(vec3(color), 1.0);
 }`;
 
-export const shaders = [bufferA, main];
-export const textures = ["/textures/avatar.png"];
+const shader = new Shader();
+shader.addGBufferPass(bufferA, { isSwappable: true, iterationsPerFrame: 5 });
+shader.addMainPass(main);
+shader.addTexture("/textures/avatar.png");
+
+export default shader;
