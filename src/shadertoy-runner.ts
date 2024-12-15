@@ -258,21 +258,23 @@ export class ShaderToyRunner {
       // 如果是可交换的缓冲区，进行多次迭代
       if (config.metadata.isSwappable && config.backTarget) {
         for (let j = 0; j < config.metadata.iterationsPerFrame; j++) {
-          // 交换front和back buffer
+          // 先更新 uniform 指向当前的 back buffer
+          this.uniforms[`iBackBuffer`].value = config.backTarget!.texture;
+
+          // 渲染到 front buffer
+          this.scene.remove(this.scene.children[0]);
+          this.scene.add(config.mesh);
+          this.renderer.setRenderTarget(config.frontTarget);
+          this.renderer.render(this.scene, this.camera);
+
+          // 交换 front 和 back buffer
           const temp = config.frontTarget;
           config.frontTarget = config.backTarget;
           config.backTarget = temp;
 
-          // 更新uniform指向新的front buffer和back buffer
+          // 更新 GBuffer uniform
           this.uniforms[`iGBuffer${config.index}`].value =
             config.frontTarget!.texture;
-          this.uniforms[`iBackBuffer`].value = config.backTarget!.texture;
-
-          // 渲染到back buffer
-          this.scene.remove(this.scene.children[0]);
-          this.scene.add(config.mesh);
-          this.renderer.setRenderTarget(config.backTarget);
-          this.renderer.render(this.scene, this.camera);
         }
       } else {
         // 普通缓冲区只渲染一次
