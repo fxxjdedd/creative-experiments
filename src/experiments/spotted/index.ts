@@ -1,5 +1,6 @@
 // Buffer A: 生成一个简单的圆形
 export const bufferA = `
+@swappable 5
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     vec2 center = vec2(0.5);
@@ -22,7 +23,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
             vec2 offset = vec2(x, y) * texel;
             float weight = 1.0 - length(offset) * 0.5;
             if(weight <= 0.0) continue;
-            blur += texture(iChannel0, uv + offset) * weight;
+            blur += texture(iGBuffer0, uv + offset) * weight;
             total += weight;
         }
     }
@@ -34,8 +35,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 export const main = `
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
-    vec4 original = texture(iChannel0, uv);  // Buffer A的原始结果
-    vec4 blurred = texture(iChannel1, uv);   // Buffer B的模糊结果
+    vec4 original = texture(iGBuffer0, uv);  // Buffer A的原始结果
+    vec4 blurred = texture(iGBuffer1, uv);   // Buffer B的模糊结果
     
     // 简单混合原始图和模糊图
     fragColor = mix(original, blurred, 0.5);

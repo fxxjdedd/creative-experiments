@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { VFX_UTILS } from "./shadertoy-utils";
+import { parseShader, BufferConfig } from "./shadertoy-parser";
 
 export class ShaderToyRunner {
   private scene: THREE.Scene;
@@ -12,23 +13,18 @@ export class ShaderToyRunner {
   private animationFrameId: number | null = null;
   private textureLoader: THREE.TextureLoader;
 
-  private bufferTextures: THREE.WebGLRenderTarget[] = [];
-  private bufferMeshes: THREE.Mesh[] = [];
+  private bufferConfigs: BufferConfig[] = [];
   private currentFrame: number = 0;
 
   constructor(
     container: HTMLCanvasElement,
-    shaders: string[], // 改为接收shader数组
-    textureList: string[] = [] // 只包含外部纹理
+    shaders: string[],
+    textureList: string[] = []
   ) {
-    // Initialize scene
     this.scene = new THREE.Scene();
     this.textureLoader = new THREE.TextureLoader();
-
-    // Setup camera
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-    // Setup renderer
     this.renderer = new THREE.WebGLRenderer({
       canvas: container,
       antialias: true,
@@ -37,10 +33,9 @@ export class ShaderToyRunner {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(1);
 
-    // Initialize time
     this.startTime = Date.now();
 
-    // Setup uniforms
+    // 基础uniforms
     this.uniforms = {
       iTime: { value: 0 },
       iResolution: {
@@ -54,10 +49,22 @@ export class ShaderToyRunner {
       iFrame: { value: 0 },
     };
 
-    // Create render targets for all intermediate buffers
-    const numBuffers = Math.max(0, shaders.length - 1); // 最后一个shader直接输出到屏幕
+    // 设置外部纹理uniforms
+    textureList.forEach((url, index) => {
+      this.uniforms[`iChannel${index}`] = { value: null };
+      this.textureLoader.load(url, (texture) => {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        this.uniforms[`iChannel${index}`].value = texture;
+      });
+    });
+
+    // 解析所有shader并创建对应的缓冲区配置
+    const numBuffers = shaders.length - 1; // 最后一个shader是输出
     for (let i = 0; i < numBuffers; i++) {
-      const renderTarget = new THREE.WebGLRenderTarget(
+      const metadata = parseShader(shaders[i]);
+
+      // 创建主缓冲区
+      const frontTarget = new THREE.WebGLRenderTarget(
         container.clientWidth,
         container.clientHeight,
         {
@@ -67,35 +74,39 @@ export class ShaderToyRunner {
           type: THREE.FloatType,
         }
       );
-      this.bufferTextures.push(renderTarget);
 
-      // Add the buffer texture as a channel
-      this.uniforms[`iChannel${textureList.length + i}`] = {
-        value: renderTarget.texture,
+      // 如果是可交换的，创建后缓冲区
+      let backTarget = null;
+      if (metadata.isSwappable) {
+        backTarget = new THREE.WebGLRenderTarget(
+          container.clientWidth,
+          container.clientHeight,
+          {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            format: THREE.RGBAFormat,
+            type: THREE.FloatType,
+          }
+        );
+      }
+
+      // 设置GBuffer uniforms
+      this.uniforms[`iGBuffer${i}`] = {
+        value: frontTarget.texture,
       };
-    }
+      if (metadata.isSwappable) {
+        this.uniforms[`iBackBuffer`] = {
+          value: backTarget!.texture,
+        };
+      }
 
-    // Setup external textures
-    textureList.forEach((url, index) => {
-      this.uniforms[`iChannel${index}`] = { value: null };
-      this.textureLoader.load(url, (texture) => {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        this.uniforms[`iChannel${index}`].value = texture;
-      });
-    });
-
-    // Create shader materials and meshes for each pass
-    shaders.forEach((shaderCode, index) => {
-      const uniformsDeclaration = `
-        uniform float iTime;
-        uniform vec3 iResolution;
-        uniform vec4 iMouse;
-        uniform int iFrame;
-        ${Array(textureList.length + numBuffers)
-          .fill(0)
-          .map((_, i) => `uniform sampler2D iChannel${i};`)
-          .join("\n")}
-      `;
+      // 创建材质和mesh
+      const uniformsDeclaration = this.generateUniformsDeclaration(
+        textureList.length,
+        numBuffers,
+        i,
+        metadata.isSwappable
+      );
 
       const mainFunction = `
         void main() {
@@ -108,8 +119,8 @@ export class ShaderToyRunner {
         "\n" +
         VFX_UTILS +
         "\n" +
-        shaderCode +
-        (shaderCode.includes("void main()") ? "" : "\n" + mainFunction);
+        metadata.code +
+        (metadata.code.includes("void main()") ? "" : "\n" + mainFunction);
 
       const material = new THREE.ShaderMaterial({
         fragmentShader: processedShader,
@@ -123,17 +134,107 @@ export class ShaderToyRunner {
 
       const geometry = new THREE.PlaneGeometry(2, 2);
       const mesh = new THREE.Mesh(geometry, material);
-      this.bufferMeshes.push(mesh);
+
+      this.bufferConfigs.push({
+        metadata,
+        frontTarget,
+        backTarget,
+        mesh,
+        index: i,
+      });
+    }
+
+    // 创建最终输出的mesh
+    const finalMetadata = parseShader(shaders[shaders.length - 1]);
+    const finalMaterial = new THREE.ShaderMaterial({
+      fragmentShader: this.processShader(
+        finalMetadata.code,
+        textureList.length,
+        numBuffers
+      ),
+      uniforms: this.uniforms,
+      vertexShader: `
+        void main() {
+          gl_Position = vec4(position, 1.0);
+        }
+      `,
+    });
+    const finalMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      finalMaterial
+    );
+    this.bufferConfigs.push({
+      metadata: finalMetadata,
+      frontTarget: null,
+      backTarget: null,
+      mesh: finalMesh,
+      index: numBuffers,
     });
 
-    // Add the final mesh to the scene
-    this.scene.add(this.bufferMeshes[this.bufferMeshes.length - 1]);
+    // 添加最终mesh到场景
+    this.scene.add(finalMesh);
 
-    // Setup mouse events
     container.addEventListener("mousemove", this.onMouseMove.bind(this));
-
-    // Start animation
     this.animate();
+  }
+
+  private generateUniformsDeclaration(
+    numTextures: number,
+    numBuffers: number,
+    currentBuffer: number,
+    isSwappable: boolean
+  ): string {
+    return `
+      uniform float iTime;
+      uniform vec3 iResolution;
+      uniform vec4 iMouse;
+      uniform int iFrame;
+      ${Array(numTextures)
+        .fill(0)
+        .map((_, i) => `uniform sampler2D iChannel${i};`)
+        .join("\n")}
+      ${Array(currentBuffer + 1)
+        .fill(0)
+        .map((_, i) => `uniform sampler2D iGBuffer${i};`)
+        .join("\n")}
+      ${isSwappable ? "uniform sampler2D iBackBuffer;" : ""}
+    `;
+  }
+
+  private processShader(
+    code: string,
+    numTextures: number,
+    numBuffers: number
+  ): string {
+    const uniformsDeclaration = `
+      uniform float iTime;
+      uniform vec3 iResolution;
+      uniform vec4 iMouse;
+      uniform int iFrame;
+      ${Array(numTextures)
+        .fill(0)
+        .map((_, i) => `uniform sampler2D iChannel${i};`)
+        .join("\n")}
+      ${Array(numBuffers)
+        .fill(0)
+        .map((_, i) => `uniform sampler2D iGBuffer${i};`)
+        .join("\n")}
+    `;
+
+    const mainFunction = `
+      void main() {
+        mainImage(gl_FragColor, gl_FragCoord.xy);
+      }
+    `;
+
+    return (
+      uniformsDeclaration +
+      "\n" +
+      VFX_UTILS +
+      "\n" +
+      code +
+      (code.includes("void main()") ? "" : "\n" + mainFunction)
+    );
   }
 
   private onMouseMove(event: MouseEvent): void {
@@ -147,22 +248,44 @@ export class ShaderToyRunner {
 
     this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
 
-    // Update uniforms
     this.uniforms.iTime.value = (Date.now() - this.startTime) * 0.001;
     this.uniforms.iFrame.value = this.currentFrame++;
 
-    // Render each intermediate buffer
-    for (let i = 0; i < this.bufferTextures.length; i++) {
-      this.scene.remove(this.scene.children[0]);
-      this.scene.add(this.bufferMeshes[i]);
+    // 渲染每个中间缓冲区
+    for (let i = 0; i < this.bufferConfigs.length - 1; i++) {
+      const config = this.bufferConfigs[i];
 
-      this.renderer.setRenderTarget(this.bufferTextures[i]);
-      this.renderer.render(this.scene, this.camera);
+      // 如果是可交换的缓冲区，进行多次迭代
+      if (config.metadata.isSwappable && config.backTarget) {
+        for (let j = 0; j < config.metadata.iterationsPerFrame; j++) {
+          // 交换front和back buffer
+          const temp = config.frontTarget;
+          config.frontTarget = config.backTarget;
+          config.backTarget = temp;
+
+          // 更新uniform指向新的front buffer和back buffer
+          this.uniforms[`iGBuffer${config.index}`].value =
+            config.frontTarget!.texture;
+          this.uniforms[`iBackBuffer`].value = config.backTarget!.texture;
+
+          // 渲染到back buffer
+          this.scene.remove(this.scene.children[0]);
+          this.scene.add(config.mesh);
+          this.renderer.setRenderTarget(config.backTarget);
+          this.renderer.render(this.scene, this.camera);
+        }
+      } else {
+        // 普通缓冲区只渲染一次
+        this.scene.remove(this.scene.children[0]);
+        this.scene.add(config.mesh);
+        this.renderer.setRenderTarget(config.frontTarget);
+        this.renderer.render(this.scene, this.camera);
+      }
     }
 
-    // Render final pass to screen
+    // 渲染最终输出
     this.scene.remove(this.scene.children[0]);
-    this.scene.add(this.bufferMeshes[this.bufferMeshes.length - 1]);
+    this.scene.add(this.bufferConfigs[this.bufferConfigs.length - 1].mesh);
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.scene, this.camera);
   }
@@ -198,17 +321,26 @@ export class ShaderToyRunner {
     this.renderer.setSize(width, height);
     this.uniforms.iResolution.value.set(width, height, 1);
 
-    this.bufferTextures.forEach((buffer) => {
-      buffer.setSize(width, height);
+    this.bufferConfigs.forEach((config) => {
+      if (config.frontTarget) {
+        config.frontTarget.setSize(width, height);
+      }
+      if (config.backTarget) {
+        config.backTarget.setSize(width, height);
+      }
     });
   }
 
   public dispose(): void {
-    this.bufferTextures.forEach((buffer) => buffer.dispose());
-
-    this.bufferMeshes.forEach((mesh) => {
-      mesh.geometry.dispose();
-      (mesh.material as THREE.ShaderMaterial).dispose();
+    this.bufferConfigs.forEach((config) => {
+      if (config.frontTarget) {
+        config.frontTarget.dispose();
+      }
+      if (config.backTarget) {
+        config.backTarget.dispose();
+      }
+      config.mesh.geometry.dispose();
+      (config.mesh.material as THREE.ShaderMaterial).dispose();
     });
 
     for (const key in this.uniforms) {
