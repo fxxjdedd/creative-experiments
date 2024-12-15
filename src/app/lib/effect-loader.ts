@@ -11,10 +11,7 @@ export class EffectLoader {
 
   private resize() {
     if (this.runner) {
-      this.runner.resize(
-        this.container.clientWidth,
-        this.container.clientHeight
-      );
+      this.runner.resize(this.container.clientWidth, this.container.clientHeight);
     }
   }
 

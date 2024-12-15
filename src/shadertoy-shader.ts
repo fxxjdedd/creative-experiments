@@ -4,12 +4,12 @@ import * as THREE from "three";
 export interface ShaderPassOptions {
   isSwappable?: boolean;
   iterationsPerFrame?: number;
-  runOnce?: boolean;
 }
 
 export class Shader {
   private bufferPasses: {
     code: string;
+    initialSubPass?: string;
     metadata: Required<ShaderPassOptions>;
   }[] = [];
   private mainPass: {
@@ -17,13 +17,13 @@ export class Shader {
     metadata: Required<ShaderPassOptions>;
   } | null = null;
   private textures: string[] = [];
-  addGBufferPass(code: string, options: ShaderPassOptions = {}) {
+  addGBufferPass(code: string, options: ShaderPassOptions = {}, initialSubPass?: string) {
     this.bufferPasses.push({
       code,
+      initialSubPass,
       metadata: {
         isSwappable: options.isSwappable ?? false,
         iterationsPerFrame: options.iterationsPerFrame ?? 1,
-        runOnce: options.runOnce ?? false,
       },
     });
   }
@@ -34,7 +34,6 @@ export class Shader {
       metadata: {
         isSwappable: false,
         iterationsPerFrame: 1,
-        runOnce: false,
       },
     };
   }

@@ -59,22 +59,9 @@ const EffectDetail = () => {
     <div className="min-h-screen bg-zinc-900">
       <header className="fixed top-0 left-0 w-full bg-zinc-900/80 backdrop-blur-sm z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link
-            to="/"
-            className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-2"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
+          <Link to="/" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Gallery
           </Link>
@@ -83,11 +70,7 @@ const EffectDetail = () => {
       </header>
 
       <main className="pt-16">
-        <div
-          className={`relative bg-black ${
-            isFullWidth ? "aspect-[21/9]" : "max-w-3xl mx-auto aspect-video"
-          }`}
-        >
+        <div className={`relative bg-black ${isFullWidth ? "aspect-[21/9]" : "max-w-3xl mx-auto aspect-video"}`}>
           <canvas ref={containerRef} className="w-full h-full" />
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
             <button
@@ -113,22 +96,17 @@ const EffectDetail = () => {
 
         <div className="max-w-3xl mx-auto px-6 py-12 space-y-12">
           <section>
-            <h2 className="text-xl font-medium text-white">
-              About this Effect
-            </h2>
+            <h2 className="text-xl font-medium text-white">About this Effect</h2>
             <p className="mt-3 text-zinc-400 leading-relaxed">
-              This is a detailed description of the effect. It will be
-              dynamically loaded based on the effect ID.
+              This is a detailed description of the effect. It will be dynamically loaded based on the effect ID.
             </p>
           </section>
 
           <section>
-            <h3 className="text-xl font-medium text-white">
-              Implementation Details
-            </h3>
+            <h3 className="text-xl font-medium text-white">Implementation Details</h3>
             <p className="mt-3 text-zinc-400 leading-relaxed">
-              Technical details about how the effect was implemented, including
-              information about the shaders, techniques, and algorithms used.
+              Technical details about how the effect was implemented, including information about the shaders,
+              techniques, and algorithms used.
             </p>
           </section>
 

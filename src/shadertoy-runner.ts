@@ -36,11 +36,7 @@ export class ShaderToyRunner {
     this.uniforms = {
       iTime: { value: 0 },
       iResolution: {
-        value: new THREE.Vector3(
-          container.clientWidth,
-          container.clientHeight,
-          1
-        ),
+        value: new THREE.Vector3(container.clientWidth, container.clientHeight, 1),
       },
       iMouse: { value: new THREE.Vector4() },
       iFrame: { value: 0 },
@@ -63,32 +59,24 @@ export class ShaderToyRunner {
       const { code, metadata } = bufferPasses[i];
 
       // 创建主缓冲区和debug缓冲区
-      const frontTarget = new THREE.WebGLRenderTarget(
-        container.clientWidth,
-        container.clientHeight,
-        {
+      const frontTarget = new THREE.WebGLRenderTarget(container.clientWidth, container.clientHeight, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        count: 2,
+      });
+
+      // 如果是可交换的，创建后缓冲区
+      let backTarget = null;
+      if (metadata.isSwappable) {
+        backTarget = new THREE.WebGLRenderTarget(container.clientWidth, container.clientHeight, {
           minFilter: THREE.NearestFilter,
           magFilter: THREE.NearestFilter,
           format: THREE.RGBAFormat,
           type: THREE.FloatType,
           count: 2,
-        }
-      );
-
-      // 如果是可交换的，创建后缓冲区
-      let backTarget = null;
-      if (metadata.isSwappable) {
-        backTarget = new THREE.WebGLRenderTarget(
-          container.clientWidth,
-          container.clientHeight,
-          {
-            minFilter: THREE.NearestFilter,
-            magFilter: THREE.NearestFilter,
-            format: THREE.RGBAFormat,
-            type: THREE.FloatType,
-            count: 2,
-          }
-        );
+        });
       }
 
       // 设置GBuffer uniforms - 主输出和debug输出
@@ -161,11 +149,7 @@ export class ShaderToyRunner {
       throw new Error("Main pass not found");
     }
     const finalMaterial = new THREE.ShaderMaterial({
-      fragmentShader: this.processShader(
-        mainPass.code,
-        externalTextures.length,
-        numBuffers
-      ),
+      fragmentShader: this.processShader(mainPass.code, externalTextures.length, numBuffers),
       uniforms: this.uniforms,
       vertexShader: `
         void main() {
@@ -174,10 +158,7 @@ export class ShaderToyRunner {
       `,
       glslVersion: THREE.GLSL3,
     });
-    const finalMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
-      finalMaterial
-    );
+    const finalMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), finalMaterial);
     this.bufferConfigs.push({
       metadata: mainPass.metadata,
       frontTarget: null,
@@ -228,11 +209,7 @@ export class ShaderToyRunner {
     `;
   }
 
-  private processShader(
-    code: string,
-    numTextures: number,
-    numBuffers: number
-  ): string {
+  private processShader(code: string, numTextures: number, numBuffers: number): string {
     const uniformsDeclaration = `
       uniform float iTime;
       uniform vec3 iResolution;
@@ -263,12 +240,7 @@ export class ShaderToyRunner {
     `;
 
     return (
-      uniformsDeclaration +
-      "\n" +
-      VFX_UTILS +
-      "\n" +
-      code +
-      (code.includes("void main()") ? "" : "\n" + mainFunction)
+      uniformsDeclaration + "\n" + VFX_UTILS + "\n" + code + (code.includes("void main()") ? "" : "\n" + mainFunction)
     );
   }
 
@@ -295,8 +267,7 @@ export class ShaderToyRunner {
         for (let j = 0; j < config.metadata.iterationsPerFrame; j++) {
           // 先更新 uniform 指向当前的 back buffer
           this.uniforms[`iBackBuffer`].value = config.backTarget!.textures[0];
-          this.uniforms[`iBackBufferDebug`].value =
-            config.backTarget!.textures[1];
+          this.uniforms[`iBackBufferDebug`].value = config.backTarget!.textures[1];
 
           // 渲染到 front buffer
           this.scene.remove(this.scene.children[0]);
@@ -310,10 +281,8 @@ export class ShaderToyRunner {
           config.backTarget = temp;
 
           // 更新 GBuffer uniform
-          this.uniforms[`iGBuffer${config.index}`].value =
-            config.frontTarget!.textures[0];
-          this.uniforms[`iGBufferDebug${config.index}`].value =
-            config.frontTarget!.textures[1];
+          this.uniforms[`iGBuffer${config.index}`].value = config.frontTarget!.textures[0];
+          this.uniforms[`iGBufferDebug${config.index}`].value = config.frontTarget!.textures[1];
         }
       } else {
         // 普通缓冲区只渲染一次
@@ -385,10 +354,7 @@ export class ShaderToyRunner {
     });
 
     for (const key in this.uniforms) {
-      if (
-        key.startsWith("iChannel") &&
-        this.uniforms[key].value instanceof THREE.Texture
-      ) {
+      if (key.startsWith("iChannel") && this.uniforms[key].value instanceof THREE.Texture) {
         this.uniforms[key].value.dispose();
       }
     }

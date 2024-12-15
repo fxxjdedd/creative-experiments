@@ -2,6 +2,11 @@
 
 import { Shader } from "@/shadertoy-shader";
 
+const bufferInitial = /*glsl*/ `
+void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+    
+}`;
+
 const bufferA = /*glsl*/ `
 
 const float RATE_U = 0.210;
