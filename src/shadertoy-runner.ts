@@ -32,7 +32,7 @@ export class ShaderToyRunner {
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(1);
-    this.renderer.autoClear = false; // 禁用自动清除
+    this.renderer.autoClear = false;
 
     this.startTime = Date.now();
 
@@ -64,7 +64,7 @@ export class ShaderToyRunner {
     for (let i = 0; i < numBuffers; i++) {
       const metadata = parseShader(shaders[i]);
 
-      // 创建主缓冲区
+      // 创建主缓冲区和debug缓冲区
       const frontTarget = new THREE.WebGLRenderTarget(
         container.clientWidth,
         container.clientHeight,
@@ -73,6 +73,7 @@ export class ShaderToyRunner {
           magFilter: THREE.NearestFilter,
           format: THREE.RGBAFormat,
           type: THREE.FloatType,
+          count: 2,
         }
       );
 
@@ -87,17 +88,24 @@ export class ShaderToyRunner {
             magFilter: THREE.NearestFilter,
             format: THREE.RGBAFormat,
             type: THREE.FloatType,
+            count: 2,
           }
         );
       }
 
-      // 设置GBuffer uniforms
+      // 设置GBuffer uniforms - 主输出和debug输出
       this.uniforms[`iGBuffer${i}`] = {
-        value: frontTarget.texture,
+        value: frontTarget.textures[0],
+      };
+      this.uniforms[`iGBufferDebug${i}`] = {
+        value: frontTarget.textures[1],
       };
       if (metadata.isSwappable) {
         this.uniforms[`iBackBuffer`] = {
-          value: backTarget!.texture,
+          value: backTarget!.textures[0],
+        };
+        this.uniforms[`iBackBufferDebug`] = {
+          value: backTarget!.textures[1],
         };
       }
 
@@ -110,8 +118,11 @@ export class ShaderToyRunner {
       );
 
       const mainFunction = `
+        layout(location = 0) out vec4 fragColor;
+        layout(location = 1) out vec4 debugColor;
         void main() {
-          mainImage(gl_FragColor, gl_FragCoord.xy);
+          debugColor = vec4(1.0, 0.0, 0.0, 1.0);
+          mainImage(fragColor, gl_FragCoord.xy, debugColor);
         }
       `;
 
@@ -131,6 +142,7 @@ export class ShaderToyRunner {
             gl_Position = vec4(position, 1.0);
           }
         `,
+        glslVersion: THREE.GLSL3,
       });
 
       const geometry = new THREE.PlaneGeometry(2, 2);
@@ -159,6 +171,7 @@ export class ShaderToyRunner {
           gl_Position = vec4(position, 1.0);
         }
       `,
+      glslVersion: THREE.GLSL3,
     });
     const finalMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -196,9 +209,21 @@ export class ShaderToyRunner {
         .join("\n")}
       ${Array(currentBuffer + 1)
         .fill(0)
-        .map((_, i) => `uniform sampler2D iGBuffer${i};`)
+        .map(
+          (_, i) => `
+          uniform sampler2D iGBuffer${i};
+          uniform sampler2D iGBufferDebug${i};
+        `
+        )
         .join("\n")}
-      ${isSwappable ? "uniform sampler2D iBackBuffer;" : ""}
+      ${
+        isSwappable
+          ? `
+        uniform sampler2D iBackBuffer;
+        uniform sampler2D iBackBufferDebug;
+      `
+          : ""
+      }
     `;
   }
 
@@ -218,13 +243,21 @@ export class ShaderToyRunner {
         .join("\n")}
       ${Array(numBuffers)
         .fill(0)
-        .map((_, i) => `uniform sampler2D iGBuffer${i};`)
+        .map(
+          (_, i) => `
+          uniform sampler2D iGBuffer${i};
+          uniform sampler2D iGBufferDebug${i};
+        `
+        )
         .join("\n")}
     `;
 
     const mainFunction = `
+      layout(location = 0) out vec4 fragColor;
+      layout(location = 1) out vec4 debugColor;
       void main() {
-        mainImage(gl_FragColor, gl_FragCoord.xy);
+        debugColor = vec4(1.0, 0.0, 0.0, 1.0);
+        mainImage(fragColor, gl_FragCoord.xy, debugColor);
       }
     `;
 
@@ -260,7 +293,9 @@ export class ShaderToyRunner {
       if (config.metadata.isSwappable && config.backTarget) {
         for (let j = 0; j < config.metadata.iterationsPerFrame; j++) {
           // 先更新 uniform 指向当前的 back buffer
-          this.uniforms[`iBackBuffer`].value = config.backTarget!.texture;
+          this.uniforms[`iBackBuffer`].value = config.backTarget!.textures[0];
+          this.uniforms[`iBackBufferDebug`].value =
+            config.backTarget!.textures[1];
 
           // 渲染到 front buffer
           this.scene.remove(this.scene.children[0]);
@@ -275,7 +310,9 @@ export class ShaderToyRunner {
 
           // 更新 GBuffer uniform
           this.uniforms[`iGBuffer${config.index}`].value =
-            config.frontTarget!.texture;
+            config.frontTarget!.textures[0];
+          this.uniforms[`iGBufferDebug${config.index}`].value =
+            config.frontTarget!.textures[1];
         }
       } else {
         // 普通缓冲区只渲染一次
