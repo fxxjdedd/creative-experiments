@@ -4,7 +4,15 @@ import { Shader } from "@/shadertoy-shader";
 
 const bufferInitial = /*glsl*/ `
 void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
-    
+    vec2 uv = fragCoord/iResolution.xy;
+    float U = 1.0;
+    float distFromCenter = distance(uv, vec2(0.5, 0.5));
+    float dist = step(distFromCenter, 0.01);
+    float V = dist;
+
+    vec2 encodedU = encodeFloatToVec2(U);
+    vec2 encodedV = encodeFloatToVec2(V);
+    fragColor = vec4(encodedU.xy, encodedV.xy);
 }`;
 
 const bufferA = /*glsl*/ `
@@ -69,7 +77,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     vec2 laplace = computeLaplace(uv, U, V);
     float reactionPossibility = U * V * V;
 
-    float dt = 0.01;
+    float dt = 1.0;
 
     float nextU = U + dt*(RATE_U*laplace.x - reactionPossibility + feedU*(1.0 - U));
     float nextV = V + dt*(RATE_V*laplace.y + reactionPossibility - (killV + feedU)*V);
@@ -86,14 +94,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     vec4 original = texture2D(iGBuffer0, uv);  // Buffer A的原始结果
     vec2 decoded = vec2(decodeVec2ToFloat(original.xy), decodeVec2ToFloat(original.zw));
 
-    float v = step(0.2, decoded.x);
+    float v = step(0.2, decoded.y);
     float color = step(0.2, v);
     
     fragColor = vec4(vec3(color), 1.0);
 }`;
 
 const shader = new Shader();
-shader.addGBufferPass(bufferA, { isSwappable: true, iterationsPerFrame: 5 });
+shader.addGBufferPass(bufferA, { isSwappable: true, iterationsPerFrame: 5 }, bufferInitial);
 shader.addMainPass(main);
 shader.addTexture("/textures/avatar.png");
 
