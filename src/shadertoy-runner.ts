@@ -32,6 +32,7 @@ export class ShaderToyRunner {
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(1);
+    this.renderer.autoClear = false; // 禁用自动清除
 
     this.startTime = Date.now();
 
