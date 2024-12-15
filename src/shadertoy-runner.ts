@@ -56,7 +56,7 @@ export class ShaderToyRunner {
     const bufferPasses = shader.getBufferPasses();
     const numBuffers = bufferPasses.length; // 最后一个shader是输出
     for (let i = 0; i < numBuffers; i++) {
-      const { code, metadata } = bufferPasses[i];
+      const { code, metadata, initialSubPass } = bufferPasses[i];
 
       // 创建主缓冲区和debug缓冲区
       const frontTarget = new THREE.WebGLRenderTarget(container.clientWidth, container.clientHeight, {
@@ -134,12 +134,38 @@ export class ShaderToyRunner {
       const geometry = new THREE.PlaneGeometry(2, 2);
       const mesh = new THREE.Mesh(geometry, material);
 
+      // 如果有初始化子pass，创建它的材质
+      let initialMesh = null;
+      if (initialSubPass) {
+        const processedInitialShader =
+          uniformsDeclaration +
+          "\n" +
+          VFX_UTILS +
+          "\n" +
+          initialSubPass +
+          (initialSubPass.includes("void main()") ? "" : "\n" + mainFunction);
+
+        const initialMaterial = new THREE.ShaderMaterial({
+          fragmentShader: processedInitialShader,
+          uniforms: this.uniforms,
+          vertexShader: `
+            void main() {
+              gl_Position = vec4(position, 1.0);
+            }
+          `,
+          glslVersion: THREE.GLSL3,
+        });
+        initialMesh = new THREE.Mesh(geometry, initialMaterial);
+      }
+
       this.bufferConfigs.push({
         metadata,
         frontTarget,
         backTarget,
         mesh,
+        initialMesh,
         index: i,
+        initialized: false,
       });
     }
 
@@ -261,6 +287,19 @@ export class ShaderToyRunner {
     // 渲染每个中间缓冲区
     for (let i = 0; i < this.bufferConfigs.length - 1; i++) {
       const config = this.bufferConfigs[i];
+
+      // 如果有初始化子pass且尚未初始化，先执行初始化
+      if (config.initialMesh && !config.initialized) {
+        this.scene.remove(this.scene.children[0]);
+        this.scene.add(config.initialMesh);
+        this.renderer.setRenderTarget(config.frontTarget);
+        this.renderer.render(this.scene, this.camera);
+        if (config.backTarget) {
+          this.renderer.setRenderTarget(config.backTarget);
+          this.renderer.render(this.scene, this.camera);
+        }
+        config.initialized = true;
+      }
 
       // 如果是可交换的缓冲区，进行多次迭代
       if (config.metadata.isSwappable && config.backTarget) {

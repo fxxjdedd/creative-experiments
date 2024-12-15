@@ -60,5 +60,7 @@ export interface BufferConfig {
   frontTarget: THREE.WebGLRenderTarget | null; // 主buffer是null
   backTarget: THREE.WebGLRenderTarget | null;
   mesh: THREE.Mesh;
+  initialMesh?: THREE.Mesh | null; // 初始化子pass的mesh
+  initialized?: boolean; // 标记是否已执行初始化
   index: number; // 用于生成正确的uniform名称
 }
