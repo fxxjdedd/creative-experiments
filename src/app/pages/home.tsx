@@ -3,14 +3,8 @@ import { Link } from "react-router-dom";
 
 const effects = [
   {
-    id: "demo",
-    title: "Color Wave Demo",
-    description: "A mesmerizing color wave animation using ShaderToy",
-    thumbnail: "/thumbnails/demo.jpg",
-  },
-  {
     id: "spotted",
-    title: "Spotted Pattern",
+    title: "spotted effect based on Reaction Diffusion",
     description: "将图片转换为动态流动的斑点效果",
     thumbnail: "/thumbnails/spotted.jpg",
   },
