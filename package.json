@@ -8,11 +8,12 @@
     "preview": "pnpm exec vite preview"
   },
   "dependencies": {
+    "express": "^4.21.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "three": "^0.169.0",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "three": "^0.169.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.42",

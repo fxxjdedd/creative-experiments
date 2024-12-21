@@ -39,9 +39,8 @@ mat3 laplaceKernel = mat3(
     0.05, 0.20, 0.05
 );
 
-vec2 computeLaplace(vec2 uv, float U, float V) {
+vec2 computeLaplace(vec2 uv) {
 
-    vec2 kernelCenter = vec2(U, V);
     vec2 discreteLaplace = vec2(0.0, 0.0);
 
     for (int i = 0; i < 3; i++) {
@@ -74,7 +73,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     float feedU = mix(FEED_U_MIN, FEED_U_MAX, mapValue);
     float killV = mix(KILL_V_MIN, KILL_V_MAX, mapValue);
 
-    vec2 laplace = computeLaplace(uv, U, V);
+    vec2 laplace = computeLaplace(uv);
     float reactionPossibility = U * V * V;
 
     float dt = 1.0;

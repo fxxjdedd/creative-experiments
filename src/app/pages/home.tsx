@@ -8,6 +8,12 @@ const effects = [
     description: "将图片转换为动态流动的斑点效果",
     thumbnail: "/thumbnails/spotted.jpg",
   },
+  {
+    id: "spotted2",
+    title: "spotted effect based on Reaction Diffusion",
+    description: "将图片转换为动态流动的斑点效果2",
+    thumbnail: "/thumbnails/spotted2.png",
+  },
 ];
 
 const Home = () => {
