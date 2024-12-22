@@ -14,6 +14,12 @@ const effects = [
     description: "将图片转换为动态流动的斑点效果2",
     thumbnail: "/thumbnails/spotted2.png",
   },
+  {
+    id: "smoke",
+    title: "Smoke Effect",
+    description: "烟雾效果",
+    thumbnail: "/thumbnails/smoke.png",
+  },
 ];
 
 const Home = () => {

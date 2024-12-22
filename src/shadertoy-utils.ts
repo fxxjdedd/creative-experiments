@@ -1,7 +1,7 @@
 // Common VFX utility functions
 export const VFX_UTILS = /*glsl*/ `
 // Noise functions
-float rand(vec2 co) {
+float hash12(vec2 co) {
     return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
@@ -9,6 +9,11 @@ vec2 hash22(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
     p3 += dot(p3, p3.yzx+33.33);
     return fract((p3.xx+p3.yz)*p3.zy);
+}
+vec3 hash33(vec3 p) {
+    p = fract(p * vec3(.1031, .1030, .0973));
+    p += dot(p, p.yzx + 33.33);
+    return fract((p.xxy + p.yzz) * p.zyx);
 }
 
 // Rotation utilities

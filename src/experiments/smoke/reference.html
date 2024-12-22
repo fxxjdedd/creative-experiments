@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html lang="ja" style="user-select: none; -webkit-user-select: none">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>fro 8 - MONKEY CIRCUS おさるサーカス</title>
+    <meta property="og:title" content="fro 8 - MONKEY CIRCUS おさるサーカス" />
+    <meta property="og:url" content="http://www.mameson.com/experiment/glsl/fro_8/fro_8.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="http://www.mameson.com/experiment/glsl/fro_8/fro_8_t.jpg" />
+    <link rel="apple-touch-icon" href="http://www.mameson.com/experiment/glsl/fro_8/fro_8_t.jpg" />
+    <meta name="apple-mobile-web-app-title" content="fro 8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="drawing smoke experiment on GLSL WebGL" />
+
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="glsl.css" />
+
+    <meta name="viewport" content="width=600" />
+    <style>
+      @viewport {
+        width: 600px;
+      }
+    </style>
+  </head>
+
+  <body style="background-image: none; margin: 0">
+    <div style="width: 100%; height: 100%; background: url('bg.png'); pointer-events: none">
+      <div class="t"></div>
+
+      <canvas
+        id="canvas_1"
+        style="
+          width: 512px;
+          height: 512px;
+          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+          pointer-events: auto;
+          touch-action: none;
+        "
+      ></canvas
+      ><br />
+      touch and drag smoke<br />
+      <img src="draw.png" /><br />
+      <span class="title">"fro 8"</span><br />
+      &copy;2023 Maeda Mameo<br />
+
+      <div class="b"></div>
+
+      <script src="three_140_min.js"></script>
+      <script src="three_gltf_loader.js"></script>
+
+      <script src="skeleton_touch_3.js"></script>
+      <script src="thinker_glb_b64.js"></script>
+
+      <script>
+        "use strict";
+
+        let object;
+
+        const CANVAS_SIZE = 512;
+
+        const canvas = document.getElementById("canvas_1");
+        canvas.width = canvas.height = CANVAS_SIZE;
+
+        const devicePixelRatio = 2;
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas });
+        renderer.autoClear = false;
+        renderer.setPixelRatio(devicePixelRatio);
+
+        const renderTargets = new Array(2);
+        renderTargets[0] = new THREE.WebGLRenderTarget(CANVAS_SIZE * devicePixelRatio, CANVAS_SIZE * devicePixelRatio, {
+          format: THREE.RGBAFormat,
+          type: THREE.HalfFloatType,
+        });
+        renderTargets[1] = renderTargets[0].clone();
+        let currentRenderTarget = 0;
+
+        const offscreenRenderTarget = new THREE.WebGLRenderTarget(
+          CANVAS_SIZE * devicePixelRatio,
+          CANVAS_SIZE * devicePixelRatio
+        );
+        offscreenRenderTarget.depthTexture = new THREE.DepthTexture();
+
+        const camera = new THREE.PerspectiveCamera(80, 1 / 1, 0.01, 100);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        const thinkerModel = new THREE.Mesh(
+          new THREE.PlaneGeometry(),
+          new THREE.MeshPhongMaterial({ color: scene.background, flatShading: true })
+        );
+        scene.add(thinkerModel);
+
+        object = new THREE.DirectionalLight(scene.background, 0.4);
+        object.position.set(0, 1, 1);
+        scene.add(object);
+
+        const spotLight1 = new THREE.SpotLight(0, 1, 5, 0.8, 0.5, 1);
+        spotLight1.position.set(-2, -1, 1);
+        scene.add(spotLight1);
+
+        const spotLight2 = new THREE.SpotLight(0, 1, 5, 0.8, 0.5, 1);
+        spotLight2.position.set(2, -1, 1);
+        scene.add(spotLight2);
+
+        object = new THREE.AmbientLight(scene.background, 0.5);
+        scene.add(object);
+
+        const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+
+        const orthoScene = new THREE.Scene();
+        orthoScene.background = new THREE.Color(0);
+
+        const screenQuad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2));
+        orthoScene.add(screenQuad);
+
+        const smokeMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            invDevicePixelRatio: { value: 1 / devicePixelRatio },
+            texelSize: { value: 1 / CANVAS_SIZE },
+            time: {},
+            touchPosition: {},
+            previousFrame: {},
+          },
+          fragmentShader: `
+		uniform float invDevicePixelRatio, texelSize, time;
+		uniform vec4 touchPosition;
+		uniform sampler2D previousFrame;
+
+		void main(){
+			float noiseValue, gradientStrength, hash;
+			vec2 uv, velocity, touchVelocity;
+			vec3 noise, normal;
+			vec4 currentColor, previousColor;
+
+			uv = gl_FragCoord.xy * invDevicePixelRatio * texelSize;
+
+			// 生成随机噪声
+			noise = fract( 0.123456 * vec3( uv, time));
+			noise += dot( noise, noise.yzx + 654.321);
+			hash = fract( ( noise.x + noise.y) * noise.z);
+
+			gradientStrength = 0.1 + hash;
+			normal = normalize( vec3(
+				texture( previousFrame, uv).r - vec2(
+					texture( previousFrame, uv + vec2( gradientStrength, 0)).r,
+					texture( previousFrame, uv + vec2( 0, gradientStrength)).r
+				), gradientStrength
+			));
+
+			// 边界衰减
+			noiseValue = 1.0 - 2.0 * abs( uv.x - 0.5);
+			currentColor.x = noiseValue * smoothstep( 0.01, 0.0, uv.y);
+
+			// 烟雾运动
+			noise = 9.0 * vec3( uv, time);
+			noiseValue = 1.5 * dot( sin( 2.0 * noise), cos( 2.0 * noise.yzx))
+				+ 0.5 * dot( sin( 6.0 * noise), cos( 6.0 * noise.yzx));
+			velocity = -0.5 * vec2( cos( noiseValue), sin( noiseValue)) * ( 1.0 - uv.y);
+			velocity -= normal.xy * uv.y;
+
+			touchVelocity = -touchPosition.zw * texelSize;
+			if( 0.0 <= touchPosition.x){
+				noiseValue = smoothstep( 0.2, 0.0, length( uv - touchPosition.xy * texelSize));
+				velocity -= 0.1 * normalize( uv - touchPosition.xy * texelSize) * noiseValue;
+				touchVelocity *= noiseValue / ( 0.01 + abs( touchVelocity));
+			}
+
+			touchVelocity = clamp( 0.98 * texture( previousFrame, uv + 0.05 * touchVelocity).yz + 0.5 * touchVelocity, -1.0, 1.0);
+			velocity -= vec2( uv.y * sin( 5.0 * uv.y + 0.5 * time), 1.0 - uv.y);
+			previousColor = texture( previousFrame, uv + 0.015 * ( touchVelocity + velocity) * noiseValue);
+			noiseValue = smoothstep( 0.0, 0.01, uv.y);
+			currentColor.x = mix(
+				1.0,
+				0.98 * previousColor.x,
+			noiseValue);
+			currentColor.yz = touchVelocity;
+			currentColor.w = mix(
+				fract( 0.3 + 0.4 * uv.x + 0.1 * sin( 1.0 * time) + 0.1 * sin( 30.0 * uv.x)),
+				previousColor.w,
+			noiseValue);
+
+			gl_FragColor = currentColor;
+		}
+	`,
+        });
+
+        const displayMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            invDevicePixelRatio: { value: 1 / devicePixelRatio },
+            texelSize: { value: 1 / CANVAS_SIZE },
+            time: {},
+            smokeTexture: {},
+            sceneTexture: { value: offscreenRenderTarget.texture },
+            depthTexture: { value: offscreenRenderTarget.depthTexture },
+          },
+          fragmentShader: `
+		uniform float invDevicePixelRatio, texelSize, time;
+		uniform sampler2D smokeTexture, sceneTexture, depthTexture;
+
+		void main(){
+			float noiseValue;
+			vec2 uv;
+			vec3 noise, normal;
+			vec3 color;
+			vec4 smokeData;
+			ivec2 pixelCoord;
+
+			uv = gl_FragCoord.xy;
+			pixelCoord = ivec2( uv);
+			uv *= invDevicePixelRatio * texelSize;
+
+			smokeData = texelFetch( smokeTexture, pixelCoord, 0);
+
+			// 计算烟雾颜色
+			color = 0.6 + 0.4 * cos( vec3( 0, 2, 4) + 6.28318 * smokeData.w + time);
+			color = mix( color, vec3( 0.7), uv.y * uv.y);
+
+			// 生成随机噪声
+			noise = fract( 0.123456 * vec3( pixelCoord, time));
+			noise += dot( noise, noise.yzx + 654.321);
+			noiseValue = 0.05 + 0.01 * fract( ( noise.x + noise.y) * noise.z);
+
+			// 计算法线
+			normal = normalize( vec3( smokeData.x - vec2(
+				texture( smokeTexture, uv + vec2( noiseValue, 0)).x,
+				texture( smokeTexture, uv + vec2( 0, noiseValue)).x
+			), noiseValue));
+
+			// 光照计算
+			noiseValue = dot( normal, normalize( vec3( 1, -7, 1)));
+			color += 0.3 * ( color - vec3( 0.333 * ( color.r + color.g + color.b))) * noiseValue;
+			color += 0.5 * noiseValue + 0.0;
+
+			// 混合背景
+			color = mix( vec3( 0.9 - 0.2 * uv.y * uv.y), color, smokeData.x);
+
+			// 深度计算
+			const float near = 0.01, far = 100.0;
+			noiseValue = near * far / ( far - ( far - near) * texelFetch( depthTexture, pixelCoord, 0).r);
+
+			noiseValue += -2.0
+				+ 2.0 * normal.z * normal.z * smokeData.x
+				- 2.0 * uv.y;
+			color = mix( texelFetch( sceneTexture, pixelCoord, 0).rgb, color, sqrt( clamp( 1.5 * noiseValue, 0.0, 1.0)));
+
+			gl_FragColor = vec4( color, 1);
+		}
+	`,
+        });
+
+        //◍◍◍◍◍◍◍◍◍◍ ◍◍◍◍◍◍◍◍◍◍ ◍◍◍◍◍◍◍◍◍◍
+        //★ skeleton_touch_3.js 配置
+
+        const REFERENCE_WIDTH = CANVAS_SIZE,
+          REFERENCE_HEIGHT = CANVAS_SIZE,
+          MAX_TOUCH_POINTS = 5,
+          ENABLE_PINCH = false;
+        const touchHandler = new skeleton_touch(canvas);
+        touchHandler.set_mag_and_orientation(1, 0);
+
+        //◍◍◍◍◍◍◍◍◍◍ ◍◍◍◍◍◍◍◍◍◍ ◍◍◍◍◍◍◍◍◍◍
+
+        let frameCount;
+
+        frameCount = 0;
+
+        var gltfLoader = new THREE.GLTFLoader();
+        gltfLoader.load("data:;base64," + thinker_glb_b64, function (gltf) {
+          let scale;
+
+          scale = 0.6;
+          thinkerModel.geometry = gltf.scene.children[0].geometry.scale(scale, scale, scale);
+
+          animate();
+        });
+
+        function animate() {
+          let time;
+          let lookAtPoint;
+
+          requestAnimationFrame(animate);
+
+          touchHandler.pre();
+
+          smokeMaterial.uniforms.time.value = displayMaterial.uniforms.time.value = 0.017 * frameCount;
+
+          if (touchHandler.on) {
+            smokeMaterial.uniforms.touchPosition.value = new THREE.Vector4(
+              touchHandler.x,
+              REFERENCE_HEIGHT - touchHandler.y,
+              99 * touchHandler.vx,
+              -99 * touchHandler.vy
+            );
+          } else {
+            time = 0.03 * frameCount + Math.sin(0.01 * frameCount);
+            smokeMaterial.uniforms.touchPosition.value = new THREE.Vector4(
+              (0.5 + 0.3 * Math.cos(time)) * REFERENCE_WIDTH,
+              (0.5 + 0.3 * Math.sin(time)) * REFERENCE_HEIGHT,
+              -3 * Math.sin(time),
+              3 * Math.cos(time)
+            );
+          }
+
+          smokeMaterial.uniforms.previousFrame.value = renderTargets[currentRenderTarget].texture;
+          currentRenderTarget = 1 - currentRenderTarget;
+          screenQuad.material = smokeMaterial;
+          renderer.setRenderTarget(renderTargets[currentRenderTarget]);
+          renderer.render(orthoScene, orthoCamera);
+
+          thinkerModel.rotation.y -= 0.01;
+
+          time = 0.017 * frameCount + 3;
+          spotLight1.color = new THREE.Color(
+            0.5 + 0.5 * Math.cos(time),
+            0.5 + 0.5 * Math.cos(time + 2),
+            0.5 + 0.5 * Math.cos(time + 4)
+          );
+          time += 2;
+          spotLight2.color = new THREE.Color(
+            0.5 + 0.5 * Math.cos(time),
+            0.5 + 0.5 * Math.cos(time + 2),
+            0.5 + 0.5 * Math.cos(time + 4)
+          );
+
+          camera.position.set(0, 2, 3);
+          camera.up.set(0, 1, 0);
+          lookAtPoint = new THREE.Vector3(0, 1.8, 0);
+          camera.lookAt(lookAtPoint);
+
+          renderer.setRenderTarget(offscreenRenderTarget);
+          renderer.render(scene, camera);
+
+          displayMaterial.uniforms.smokeTexture.value = renderTargets[currentRenderTarget].texture;
+          screenQuad.material = displayMaterial;
+          renderer.setRenderTarget(null);
+          renderer.render(orthoScene, orthoCamera);
+
+          touchHandler.post();
+
+          frameCount++;
+        }
+      </script>
+    </div>
+  </body>
+</html>
