@@ -3,7 +3,7 @@
 import { Shader } from "@/shadertoy-shader";
 
 const bufferInitial = /*glsl*/ `
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     float U = 1.0;
     float distFromCenter = distance(uv, vec2(0.5, 0.5));
@@ -56,7 +56,7 @@ vec2 computeLaplace(vec2 uv) {
     return discreteLaplace;
 }
 
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     // vec2 uv = (coord2uv(fragCoord) + 1.0) / 2.0;
     vec4 backColor = texture(iBackBuffer, uv);
@@ -84,11 +84,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
     vec4 nextColor = encode(nextU, nextV);
 
     fragColor = nextColor;
-    // debugColor = vec4(reactionPossibility,0.0, 0.0, 1.0);
+    // fragColor1 = vec4(reactionPossibility,0.0, 0.0, 1.0);
 }`;
 
 const main = /*glsl*/ `
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     vec4 original = texture2D(iGBuffer0, uv);  // Buffer A的原始结果
     vec2 decoded = vec2(decodeVec2ToFloat(original.xy), decodeVec2ToFloat(original.zw));

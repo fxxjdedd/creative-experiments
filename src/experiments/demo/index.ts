@@ -1,7 +1,7 @@
 import { Shader } from "@/shadertoy-shader";
 
 const main = /*glsl*/ `
-void mainImage( out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor)
+void mainImage( out vec4 fragColor, in vec2 fragCoord)
 {
     float a = 0.36;
     float b = 0.57;

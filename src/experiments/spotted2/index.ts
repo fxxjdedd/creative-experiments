@@ -5,7 +5,7 @@ import { Shader } from "@/shadertoy-shader";
 const bufferA = /*glsl*/ `
 #define t iTime
 #define N 40
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
 
     float c = texture(iChannel0, uv).r;
@@ -31,7 +31,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
 }`;
 
 const main = /*glsl*/ `
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     float a = texture2D(iGBuffer0, uv).a;
 

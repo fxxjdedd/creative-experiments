@@ -4,6 +4,7 @@ import * as THREE from "three";
 export interface ShaderPassOptions {
   isSwappable?: boolean;
   iterationsPerFrame?: number;
+  customVertexShader?: string;
 }
 
 export class Shader {
@@ -24,6 +25,7 @@ export class Shader {
       metadata: {
         isSwappable: options.isSwappable ?? false,
         iterationsPerFrame: options.iterationsPerFrame ?? 1,
+        customVertexShader: options.customVertexShader ?? "",
       },
     });
   }
@@ -34,6 +36,7 @@ export class Shader {
       metadata: {
         isSwappable: false,
         iterationsPerFrame: 1,
+        customVertexShader: "",
       },
     };
   }

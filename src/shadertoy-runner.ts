@@ -105,10 +105,10 @@ export class ShaderToyRunner {
 
       const mainFunction = `
         layout(location = 0) out vec4 fragColor;
-        layout(location = 1) out vec4 debugColor;
+        layout(location = 1) out vec4 fragColor1;
         void main() {
-          debugColor = vec4(1.0, 0.0, 0.0, 1.0);
-          mainImage(fragColor, gl_FragCoord.xy, debugColor);
+          fragColor1 = vec4(1.0, 0.0, 0.0, 1.0);
+          mainImage(fragColor, gl_FragCoord.xy);
         }
       `;
 
@@ -123,9 +123,13 @@ export class ShaderToyRunner {
       const material = new THREE.ShaderMaterial({
         fragmentShader: processedShader,
         uniforms: this.uniforms,
-        vertexShader: `
+        vertexShader:
+          metadata.customVertexShader ||
+          `
+          out vec4 vPosition;
           void main() {
             gl_Position = vec4(position, 1.0);
+            vPosition = gl_Position;
           }
         `,
         glslVersion: THREE.GLSL3,
@@ -148,9 +152,13 @@ export class ShaderToyRunner {
         const initialMaterial = new THREE.ShaderMaterial({
           fragmentShader: processedInitialShader,
           uniforms: this.uniforms,
-          vertexShader: `
+          vertexShader:
+            metadata.customVertexShader ||
+            `
+            out vec4 vPosition;
             void main() {
               gl_Position = vec4(position, 1.0);
+              vPosition = gl_Position;
             }
           `,
           glslVersion: THREE.GLSL3,
@@ -177,9 +185,13 @@ export class ShaderToyRunner {
     const finalMaterial = new THREE.ShaderMaterial({
       fragmentShader: this.processShader(mainPass.code, externalTextures.length, numBuffers),
       uniforms: this.uniforms,
-      vertexShader: `
+      vertexShader:
+        mainPass.metadata.customVertexShader ||
+        `
+        out vec4 vPosition;
         void main() {
           gl_Position = vec4(position, 1.0);
+          vPosition = gl_Position;
         }
       `,
       glslVersion: THREE.GLSL3,
@@ -207,6 +219,7 @@ export class ShaderToyRunner {
     isSwappable: boolean
   ): string {
     return `
+      in vec4 vPosition;
       uniform float iTime;
       uniform vec3 iResolution;
       uniform vec4 iMouse;
@@ -237,6 +250,7 @@ export class ShaderToyRunner {
 
   private processShader(code: string, numTextures: number, numBuffers: number): string {
     const uniformsDeclaration = `
+      in vec4 vPosition;
       uniform float iTime;
       uniform vec3 iResolution;
       uniform vec4 iMouse;
@@ -258,10 +272,10 @@ export class ShaderToyRunner {
 
     const mainFunction = `
       layout(location = 0) out vec4 fragColor;
-      layout(location = 1) out vec4 debugColor;
+      layout(location = 1) out vec4 fragColor1;
       void main() {
-        debugColor = vec4(1.0, 0.0, 0.0, 1.0);
-        mainImage(fragColor, gl_FragCoord.xy, debugColor);
+        fragColor1 = vec4(1.0, 0.0, 0.0, 1.0);
+        mainImage(fragColor, gl_FragCoord.xy);
       }
     `;
 

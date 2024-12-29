@@ -1,11 +1,9 @@
-// ref: https://groups.csail.mit.edu/mac/projects/amorphous/GrayScott/
-
 import { Shader } from "@/shadertoy-shader";
 
 const bufferA = /*glsl*/ `
 #define t iTime
 #define N 40
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float noiseValue, gradientStrength, hash;
     vec2 uv, velocity;
     vec3 noise, normal;
@@ -51,7 +49,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
 }`;
 
 const main = /*glsl*/ `
-void mainImage(out vec4 fragColor, in vec2 fragCoord, out vec4 debugColor) {
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     vec4 color = texture2D(iGBuffer0, uv);
 

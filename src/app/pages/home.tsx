@@ -15,11 +15,17 @@ const effects = [
     thumbnail: "/thumbnails/spotted2.png",
   },
   {
-    id: "smoke",
-    title: "Smoke Effect",
-    description: "烟雾效果",
-    thumbnail: "/thumbnails/smoke.png",
+    id: "gpugem-wave",
+    title: "GPU Gem Wave",
+    description: "GPU Gem Wave",
+    thumbnail: "/thumbnails/gpugem-wave.png",
   },
+  // {
+  //   id: "smoke",
+  //   title: "Smoke Effect",
+  //   description: "烟雾效果",
+  //   thumbnail: "/thumbnails/smoke.png",
+  // },
 ];
 
 const Home = () => {
