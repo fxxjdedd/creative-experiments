@@ -106,13 +106,10 @@ export class ShaderToyRunner {
         metadata.isSwappable
       );
 
-      const processedShader = this.processShader(code, externalTextures.length, numBuffers);
-      const processedVertexShader = this.processVertexShader(metadata.customVertexShader, uniformsDeclaration);
-
       const material = new THREE.ShaderMaterial({
-        fragmentShader: processedShader,
+        fragmentShader: this.processShader(code, uniformsDeclaration),
         uniforms: this.uniforms,
-        vertexShader: processedVertexShader,
+        vertexShader: this.processVertexShader(metadata.customVertexShader, uniformsDeclaration),
         glslVersion: THREE.GLSL3,
       });
 
@@ -127,11 +124,10 @@ export class ShaderToyRunner {
       // 如果有初始化子pass，创建它的材质
       let initialMesh = null;
       if (initialSubPass) {
-        const processedInitialShader = this.processShader(initialSubPass, externalTextures.length, numBuffers);
         const initialMaterial = new THREE.ShaderMaterial({
-          fragmentShader: processedInitialShader,
+          fragmentShader: this.processShader(initialSubPass, uniformsDeclaration),
           uniforms: this.uniforms,
-          vertexShader: processedVertexShader,
+          vertexShader: this.processVertexShader(metadata.customVertexShader, uniformsDeclaration),
           glslVersion: THREE.GLSL3,
         });
         initialMesh = new THREE.Mesh(geometry, initialMaterial);
@@ -165,13 +161,10 @@ export class ShaderToyRunner {
       false
     );
 
-    const processedShader = this.processShader(mainPass.code, externalTextures.length, numBuffers);
-    const processedVertexShader = this.processVertexShader(mainPass.metadata.customVertexShader, uniformsDeclaration);
-
     const finalMaterial = new THREE.ShaderMaterial({
-      fragmentShader: processedShader,
+      fragmentShader: this.processShader(mainPass.code, uniformsDeclaration),
       uniforms: this.uniforms,
-      vertexShader: processedVertexShader,
+      vertexShader: this.processVertexShader(mainPass.metadata.customVertexShader, uniformsDeclaration),
       glslVersion: THREE.GLSL3,
     });
 
@@ -204,34 +197,37 @@ export class ShaderToyRunner {
     currentBuffer: number,
     isSwappable: boolean
   ): string {
-    return `
+    const baseUniforms = `
       in vec4 vPosition;
       uniform float iTime;
       uniform vec3 iResolution;
       uniform vec4 iMouse;
       uniform int iFrame;
-      ${Array(numTextures)
-        .fill(0)
-        .map((_, i) => `uniform sampler2D iChannel${i};`)
-        .join("\n")}
-      ${Array(currentBuffer + 1)
-        .fill(0)
-        .map(
-          (_, i) => `
-          uniform sampler2D iGBuffer${i};
-          uniform sampler2D iGBufferDebug${i};
-        `
-        )
-        .join("\n")}
-      ${
-        isSwappable
-          ? `
-        uniform sampler2D iBackBuffer;
-        uniform sampler2D iBackBufferDebug;
-      `
-          : ""
-      }
     `;
+
+    const textureUniforms = Array(numTextures)
+      .fill(0)
+      .map((_, i) => `uniform sampler2D iChannel${i};`)
+      .join("\n");
+
+    const bufferUniforms = Array(currentBuffer + 1)
+      .fill(0)
+      .map(
+        (_, i) => `
+        uniform sampler2D iGBuffer${i};
+        uniform sampler2D iGBufferDebug${i};
+      `
+      )
+      .join("\n");
+
+    const swapUniforms = isSwappable
+      ? `
+      uniform sampler2D iBackBuffer;
+      uniform sampler2D iBackBufferDebug;
+    `
+      : "";
+
+    return `${baseUniforms}\n${textureUniforms}\n${bufferUniforms}\n${swapUniforms}`;
   }
 
   private processVertexShader(customVertexShader: string | undefined, uniformsDeclaration: string): string {
@@ -239,39 +235,18 @@ export class ShaderToyRunner {
       return uniformsDeclaration + "\n" + customVertexShader;
     }
 
-    return (
-      uniformsDeclaration +
-      `
+    return `
+      ${uniformsDeclaration}
       void main() {
         gl_Position = vec4(position, 1.0);
       }
-    `
-    );
+    `;
   }
 
-  private processShader(code: string, numTextures: number, numBuffers: number): string {
-    const uniformsDeclaration = `
-      in vec4 vPosition;
-      uniform float iTime;
-      uniform vec3 iResolution;
-      uniform vec4 iMouse;
-      uniform int iFrame;
-      ${Array(numTextures)
-        .fill(0)
-        .map((_, i) => `uniform sampler2D iChannel${i};`)
-        .join("\n")}
-      ${Array(numBuffers)
-        .fill(0)
-        .map(
-          (_, i) => `
-          uniform sampler2D iGBuffer${i};
-          uniform sampler2D iGBufferDebug${i};
-        `
-        )
-        .join("\n")}
-    `;
-
-    const mainFunction = `
+  private processShader(code: string, uniformsDeclaration: string): string {
+    const mainFunction = code.includes("void main()")
+      ? ""
+      : `
       layout(location = 0) out vec4 fragColor;
       layout(location = 1) out vec4 fragColor1;
       void main() {
@@ -280,9 +255,7 @@ export class ShaderToyRunner {
       }
     `;
 
-    return (
-      uniformsDeclaration + "\n" + VFX_UTILS + "\n" + code + (code.includes("void main()") ? "" : "\n" + mainFunction)
-    );
+    return `${uniformsDeclaration}\n${VFX_UTILS}\n${code}\n${mainFunction}`;
   }
 
   private onMouseMove(event: MouseEvent): void {
