@@ -6,6 +6,7 @@ export interface ShaderPassOptions {
   iterationsPerFrame?: number;
   customVertexShader?: string;
   customUniforms?: Record<string, THREE.IUniform>;
+  customPlaneGeometry?: THREE.PlaneGeometry;
 }
 
 export class Shader {
@@ -28,6 +29,7 @@ export class Shader {
         iterationsPerFrame: options.iterationsPerFrame ?? 1,
         customVertexShader: options.customVertexShader ?? "",
         customUniforms: options.customUniforms ?? {},
+        customPlaneGeometry: options.customPlaneGeometry ?? new THREE.PlaneGeometry(2, 2),
       },
     });
   }
@@ -40,6 +42,7 @@ export class Shader {
         iterationsPerFrame: 1,
         customVertexShader: "",
         customUniforms: {},
+        customPlaneGeometry: new THREE.PlaneGeometry(2, 2),
       },
     };
   }

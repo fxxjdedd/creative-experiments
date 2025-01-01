@@ -106,67 +106,36 @@ export class ShaderToyRunner {
         metadata.isSwappable
       );
 
-      const mainFunction = `
-        layout(location = 0) out vec4 fragColor;
-        layout(location = 1) out vec4 fragColor1;
-        void main() {
-          fragColor1 = vec4(1.0, 0.0, 0.0, 1.0);
-          mainImage(fragColor, gl_FragCoord.xy);
-        }
-      `;
-
-      const processedShader =
-        uniformsDeclaration +
-        "\n" +
-        VFX_UTILS +
-        "\n" +
-        code +
-        (code.includes("void main()") ? "" : "\n" + mainFunction);
+      const processedShader = this.processShader(code, externalTextures.length, numBuffers);
+      const processedVertexShader = this.processVertexShader(metadata.customVertexShader, uniformsDeclaration);
 
       const material = new THREE.ShaderMaterial({
         fragmentShader: processedShader,
         uniforms: this.uniforms,
-        vertexShader:
-          metadata.customVertexShader ||
-          `
-          out vec4 vPosition;
-          void main() {
-            gl_Position = vec4(position, 1.0);
-            vPosition = gl_Position;
-          }
-        `,
+        vertexShader: processedVertexShader,
         glslVersion: THREE.GLSL3,
       });
 
-      const geometry = new THREE.PlaneGeometry(2, 2);
+      const geometry = metadata.customPlaneGeometry;
       const mesh = new THREE.Mesh(geometry, material);
+
+      // 计算缩放比例使mesh适应camera视野
+      const scaleX = 2 / geometry.parameters.width;
+      const scaleY = 2 / geometry.parameters.height;
+      mesh.scale.set(scaleX, scaleY, 1);
 
       // 如果有初始化子pass，创建它的材质
       let initialMesh = null;
       if (initialSubPass) {
-        const processedInitialShader =
-          uniformsDeclaration +
-          "\n" +
-          VFX_UTILS +
-          "\n" +
-          initialSubPass +
-          (initialSubPass.includes("void main()") ? "" : "\n" + mainFunction);
-
+        const processedInitialShader = this.processShader(initialSubPass, externalTextures.length, numBuffers);
         const initialMaterial = new THREE.ShaderMaterial({
           fragmentShader: processedInitialShader,
           uniforms: this.uniforms,
-          vertexShader:
-            metadata.customVertexShader ||
-            `
-            out vec4 vPosition;
-            void main() {
-              gl_Position = vec4(position, 1.0);
-              vPosition = gl_Position;
-            }
-          `,
+          vertexShader: processedVertexShader,
           glslVersion: THREE.GLSL3,
         });
         initialMesh = new THREE.Mesh(geometry, initialMaterial);
+        initialMesh.scale.set(scaleX, scaleY, 1);
       }
 
       this.bufferConfigs.push({
@@ -189,21 +158,31 @@ export class ShaderToyRunner {
     // 合并主pass的自定义uniforms
     Object.assign(this.uniforms, mainPass.metadata.customUniforms);
 
+    const uniformsDeclaration = this.generateUniformsDeclaration(
+      externalTextures.length,
+      numBuffers,
+      numBuffers,
+      false
+    );
+
+    const processedShader = this.processShader(mainPass.code, externalTextures.length, numBuffers);
+    const processedVertexShader = this.processVertexShader(mainPass.metadata.customVertexShader, uniformsDeclaration);
+
     const finalMaterial = new THREE.ShaderMaterial({
-      fragmentShader: this.processShader(mainPass.code, externalTextures.length, numBuffers),
+      fragmentShader: processedShader,
       uniforms: this.uniforms,
-      vertexShader:
-        mainPass.metadata.customVertexShader ||
-        `
-        out vec4 vPosition;
-        void main() {
-          gl_Position = vec4(position, 1.0);
-          vPosition = gl_Position;
-        }
-      `,
+      vertexShader: processedVertexShader,
       glslVersion: THREE.GLSL3,
     });
-    const finalMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), finalMaterial);
+
+    const finalGeometry = mainPass.metadata.customPlaneGeometry;
+    const finalMesh = new THREE.Mesh(finalGeometry, finalMaterial);
+
+    // 计算缩放比例使finalMesh适应camera视野
+    const finalScaleX = 2 / finalGeometry.parameters.width;
+    const finalScaleY = 2 / finalGeometry.parameters.height;
+    finalMesh.scale.set(finalScaleX, finalScaleY, 1);
+
     this.bufferConfigs.push({
       metadata: mainPass.metadata,
       frontTarget: null,
@@ -253,6 +232,21 @@ export class ShaderToyRunner {
           : ""
       }
     `;
+  }
+
+  private processVertexShader(customVertexShader: string | undefined, uniformsDeclaration: string): string {
+    if (customVertexShader) {
+      return uniformsDeclaration + "\n" + customVertexShader;
+    }
+
+    return (
+      uniformsDeclaration +
+      `
+      void main() {
+        gl_Position = vec4(position, 1.0);
+      }
+    `
+    );
   }
 
   private processShader(code: string, numTextures: number, numBuffers: number): string {
