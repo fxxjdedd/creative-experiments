@@ -5,6 +5,7 @@ export interface ShaderPassOptions {
   isSwappable?: boolean;
   iterationsPerFrame?: number;
   customVertexShader?: string;
+  customUniforms?: Record<string, THREE.IUniform>;
 }
 
 export class Shader {
@@ -26,6 +27,7 @@ export class Shader {
         isSwappable: options.isSwappable ?? false,
         iterationsPerFrame: options.iterationsPerFrame ?? 1,
         customVertexShader: options.customVertexShader ?? "",
+        customUniforms: options.customUniforms ?? {},
       },
     });
   }
@@ -37,6 +39,7 @@ export class Shader {
         isSwappable: false,
         iterationsPerFrame: 1,
         customVertexShader: "",
+        customUniforms: {},
       },
     };
   }

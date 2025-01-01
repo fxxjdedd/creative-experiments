@@ -95,6 +95,9 @@ export class ShaderToyRunner {
         };
       }
 
+      // 合并自定义uniforms
+      Object.assign(this.uniforms, metadata.customUniforms);
+
       // 创建材质和mesh
       const uniformsDeclaration = this.generateUniformsDeclaration(
         externalTextures.length,
@@ -182,6 +185,10 @@ export class ShaderToyRunner {
     if (!mainPass) {
       throw new Error("Main pass not found");
     }
+
+    // 合并主pass的自定义uniforms
+    Object.assign(this.uniforms, mainPass.metadata.customUniforms);
+
     const finalMaterial = new THREE.ShaderMaterial({
       fragmentShader: this.processShader(mainPass.code, externalTextures.length, numBuffers),
       uniforms: this.uniforms,

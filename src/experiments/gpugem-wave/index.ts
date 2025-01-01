@@ -1,6 +1,12 @@
 import { Shader } from "@/shadertoy-shader";
 
 const bufferAVertex = /*glsl*/ `
+#define COUNT 10
+#define WAVE_LENGTH 100.0
+#define WAVE_AMPLITUDE 10.0
+#define WAVE_SPEED 1.0
+#define WAVE_DIRECTION vec2(1.0, 0.0)
+
 void main() {
     gl_Position = vec4(position, 1.0);
 }`;
