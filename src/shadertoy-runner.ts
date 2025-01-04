@@ -169,7 +169,7 @@ export class ShaderToyRunner {
     const finalMaterial = new THREE.ShaderMaterial({
       fragmentShader: this.processShader(mainPass.code, uniformsDeclaration),
       uniforms: this.uniforms,
-      vertexShader: this.processVertexShader(mainPass.metadata.customVertexShader, uniformsDeclaration),
+      vertexShader: this.processVertexShader(mainPass.metadata.customVertexShader, uniformsDeclaration, true),
       glslVersion: THREE.GLSL3,
     });
 
@@ -235,7 +235,11 @@ export class ShaderToyRunner {
     return `${baseUniforms}\n${textureUniforms}\n${bufferUniforms}\n${swapUniforms}`;
   }
 
-  private processVertexShader(customVertexShader: string | undefined, uniformsDeclaration: string): string {
+  private processVertexShader(
+    customVertexShader: string | undefined,
+    uniformsDeclaration: string,
+    applyMVPTransform = false
+  ): string {
     if (customVertexShader) {
       return uniformsDeclaration + "\n" + customVertexShader;
     }
@@ -243,7 +247,11 @@ export class ShaderToyRunner {
     return `
       ${uniformsDeclaration}
       void main() {
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        ${
+          applyMVPTransform
+            ? "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);"
+            : "gl_Position = vec4(position, 1.0);"
+        }
       }
     `;
   }
