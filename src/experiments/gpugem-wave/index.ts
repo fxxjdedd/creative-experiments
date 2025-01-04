@@ -1,7 +1,9 @@
 import { Shader } from "@/shadertoy-shader";
 import { Vector2 as vec2, PlaneGeometry } from "three";
 
-const bufferAVertex = /*glsl*/ `
+// ref: https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models
+
+const bufferA = /*glsl*/ `
 #define MAX_COUNT 4
 #define PI 3.14159265359
 #define TWO_PI 6.28318530718
@@ -13,15 +15,11 @@ uniform float waveSpeed[MAX_COUNT];
 uniform vec2 waveDirection[MAX_COUNT];
 uniform float waveSteepnesses[MAX_COUNT];
 
-out vec4 vPos;
-out vec3 vNormal;
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
-void main() {
-
-    vec2 planeCoord = position.xy;
-
-    vPos = vec4(vec3(0.0), 1.0);
-    vNormal = normal.xyz;
+    vec2 uv = fragCoord/iResolution.xy;
+    uv *= 200.0;
+    vec3 P = vec3(0.0);
 
     for (int i = 0; i < waveCount; i++) {
 
@@ -37,25 +35,16 @@ void main() {
 
         float wa = w * a;
         float q  = steepness / (wa * float(waveCount));
-        float dt = dot(d, planeCoord);
+        float dt = dot(d, uv);
         float wdt = w * dt;
         float qa = q * a;
 
         // P(x,y,t)
-        vPos.x += (qa * d.x * cos(wdt + phase));
-        vPos.y += (qa * d.y * cos(wdt + phase));
-        vPos.z += (a * sin(wdt + phase));
+        P.x += (qa * d.x * cos(wdt + phase));
+        P.y += (qa * d.y * cos(wdt + phase));
+        P.z += (a * sin(wdt + phase));
     }
-
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}`;
-
-const bufferA = /*glsl*/ `
-in vec4 vPos;
-in vec3 vNormal;
-
-void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    fragColor = vPos;
+    fragColor = vec4(P, 1.0);
 }`;
 
 const main = /*glsl*/ `
@@ -69,7 +58,6 @@ const shader = new Shader();
 shader.addGBufferPass(bufferA, {
   isSwappable: true,
   iterationsPerFrame: 1,
-  customVertexShader: bufferAVertex,
   customUniforms: {
     waveCount: { value: 4 },
     waveLength: { value: [14, 6, 4, 3] },
@@ -85,7 +73,6 @@ shader.addGBufferPass(bufferA, {
     },
     waveSteepnesses: { value: [0.25, 0.3, 0.6, 0.7] },
   },
-  customPlaneGeometry: new PlaneGeometry(100, 100, 200, 200),
 });
 shader.addMainPass(main);
 
