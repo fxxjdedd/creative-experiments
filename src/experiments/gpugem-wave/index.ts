@@ -19,6 +19,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     vec2 uv = fragCoord/iResolution.xy;
     uv *= 200.0;
+
     vec3 P = vec3(0.0);
     vec3 N = vec3(0.0);
 
@@ -59,7 +60,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
 const mainVert = /*glsl*/ `
 void main() {
-    vec3 wavePosition = texture2D(iGBuffer0, uv).xyz;
+    vec3 wavePosition = texture2D(iGBuffer0, uv).xzy; // y is height in three.js
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position.xyz + wavePosition, 1.0);
 }`;
 
@@ -68,7 +69,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     vec3 position = texture2D(iGBuffer0, uv).xyz;
     vec3 normal = texture2D(iGBufferDebug0, uv).xyz;
-    fragColor = vec4(normal, 1.0);
+
+    vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+    vec3 lightColor = vec3(1.0, 1.0, 1.0);
+    vec3 diffuse = max(dot(normal, lightDir), 0.0) * lightColor;
+    vec3 color = vec3(0.0, 0.0, 0.0);
+    color += diffuse;
+
+    fragColor = vec4(color, 1.0);
 }`;
 
 const shader = new Shader();
@@ -92,7 +100,8 @@ shader.addGBufferPass(buffer0, {
   },
 });
 shader.addMainPass(mainFrag, {
-  // customVertexShader: mainVert,
+  customVertexShader: mainVert,
+  customPlaneGeometry: new PlaneGeometry(100, 100, 200, 200),
 });
 
 export default shader;
