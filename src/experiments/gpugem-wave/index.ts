@@ -20,9 +20,10 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     uv *= 200.0;
     vec3 P = vec3(0.0);
+    vec3 N = vec3(0.0);
 
+    // compute position
     for (int i = 0; i < waveCount; i++) {
-
         float l = waveLength[i];
         float a = waveAmplitude[i];
         float s = waveSpeed[i];
@@ -43,15 +44,25 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         P.x += (qa * d.x * cos(wdt + phase));
         P.y += (qa * d.y * cos(wdt + phase));
         P.z += (a * sin(wdt + phase));
+
+        // N
+        N.x -= (d.x * wa * cos(wdt + phase));
+        N.y -= (d.y * wa * cos(wdt + phase));
+        N.z -= (q * wa * sin(wdt + phase));
     }
+
+    N.z = 1.0 + N.z;
+
     fragColor = vec4(P, 1.0);
+    debugColor = vec4(normalize(N), 1.0);
 }`;
 
 const main = /*glsl*/ `
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
-    vec4 color = texture2D(iGBuffer0, uv);
-    fragColor = vec4(color.xyz, 1.0);
+    vec3 position = texture2D(iGBuffer0, uv).xyz;
+    vec3 normal = texture2D(iGBufferDebug0, uv).xyz;
+    fragColor = vec4(position, 1.0);
 }`;
 
 const shader = new Shader();

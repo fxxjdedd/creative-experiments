@@ -244,18 +244,21 @@ export class ShaderToyRunner {
   }
 
   private processShader(code: string, uniformsDeclaration: string): string {
+    const layoutDeclaration = `
+      layout(location = 0) out vec4 fragColor;
+      layout(location = 1) out vec4 debugColor;
+    `;
+
     const mainFunction = code.includes("void main()")
       ? ""
       : `
-      layout(location = 0) out vec4 fragColor;
-      layout(location = 1) out vec4 fragColor1;
       void main() {
-        fragColor1 = vec4(1.0, 0.0, 0.0, 1.0);
+        debugColor = vec4(1.0, 0.0, 0.0, 1.0);
         mainImage(fragColor, gl_FragCoord.xy);
       }
     `;
 
-    return `${uniformsDeclaration}\n${VFX_UTILS}\n${code}\n${mainFunction}`;
+    return `${uniformsDeclaration}\n${VFX_UTILS}\n${layoutDeclaration}\n${code}\n${mainFunction}`;
   }
 
   private onMouseMove(event: MouseEvent): void {
