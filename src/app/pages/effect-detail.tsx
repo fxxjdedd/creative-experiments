@@ -8,6 +8,8 @@ const EffectDetail = () => {
   const loaderRef = useRef<EffectLoader | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullWidth, setIsFullWidth] = useState(false);
+  const [orbitEnabled, setOrbitEnabled] = useState(false);
+  const [isPerspective, setIsPerspective] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !id) return;
@@ -55,6 +57,24 @@ const EffectDetail = () => {
     });
   };
 
+  const handleToggleOrbit = () => {
+    if (loaderRef.current) {
+      if (orbitEnabled) {
+        loaderRef.current.disableOrbitControls();
+      } else {
+        loaderRef.current.enableOrbitControls();
+      }
+      setOrbitEnabled(!orbitEnabled);
+    }
+  };
+
+  const handleToggleCamera = () => {
+    if (loaderRef.current) {
+      loaderRef.current.toggleCameraType();
+      setIsPerspective(!isPerspective);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-900">
       <header className="fixed top-0 left-0 w-full bg-zinc-900/80 backdrop-blur-sm z-10">
@@ -91,6 +111,18 @@ const EffectDetail = () => {
             >
               {isFullWidth ? "Shrink" : "Expand"}
             </button>
+            <button
+              onClick={handleToggleOrbit}
+              className="px-6 py-2 text-sm font-medium text-white bg-zinc-800/90 hover:bg-zinc-700/90 rounded-full transition-colors backdrop-blur-sm"
+            >
+              {orbitEnabled ? "Disable Orbit" : "Enable Orbit"}
+            </button>
+            <button
+              onClick={handleToggleCamera}
+              className="px-6 py-2 text-sm font-medium text-white bg-zinc-800/90 hover:bg-zinc-700/90 rounded-full transition-colors backdrop-blur-sm"
+            >
+              {isPerspective ? "Orthographic" : "Perspective"}
+            </button>
           </div>
         </div>
 
@@ -124,6 +156,14 @@ const EffectDetail = () => {
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
                 Mouse: Move cursor over the canvas to interact
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                Orbit Controls: Enable/disable camera orbit controls
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                Camera Type: Switch between perspective and orthographic camera
               </li>
             </ul>
           </section>

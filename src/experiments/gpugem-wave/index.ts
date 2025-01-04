@@ -3,7 +3,7 @@ import { Vector2 as vec2, PlaneGeometry } from "three";
 
 // ref: https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models
 
-const bufferA = /*glsl*/ `
+const buffer0 = /*glsl*/ `
 #define MAX_COUNT 4
 #define PI 3.14159265359
 #define TWO_PI 6.28318530718
@@ -57,16 +57,22 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     debugColor = vec4(normalize(N), 1.0);
 }`;
 
-const main = /*glsl*/ `
+const mainVert = /*glsl*/ `
+void main() {
+    vec3 wavePosition = texture2D(iGBuffer0, uv).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position.xyz + wavePosition, 1.0);
+}`;
+
+const mainFrag = /*glsl*/ `
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     vec3 position = texture2D(iGBuffer0, uv).xyz;
     vec3 normal = texture2D(iGBufferDebug0, uv).xyz;
-    fragColor = vec4(position, 1.0);
+    fragColor = vec4(normal, 1.0);
 }`;
 
 const shader = new Shader();
-shader.addGBufferPass(bufferA, {
+shader.addGBufferPass(buffer0, {
   isSwappable: true,
   iterationsPerFrame: 1,
   customUniforms: {
@@ -85,6 +91,8 @@ shader.addGBufferPass(bufferA, {
     waveSteepnesses: { value: [0.25, 0.3, 0.6, 0.7] },
   },
 });
-shader.addMainPass(main);
+shader.addMainPass(mainFrag, {
+  // customVertexShader: mainVert,
+});
 
 export default shader;

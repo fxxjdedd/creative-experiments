@@ -1,10 +1,11 @@
 import * as THREE from "three";
 import { VFX_UTILS } from "./shadertoy-utils";
 import { BufferConfig, Shader } from "./shadertoy-shader";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 export class ShaderToyRunner {
   private scene: THREE.Scene;
-  private camera: THREE.OrthographicCamera;
+  private camera: THREE.OrthographicCamera | THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private uniforms: { [key: string]: THREE.IUniform };
   private startTime: number;
@@ -12,19 +13,23 @@ export class ShaderToyRunner {
   private isPlaying: boolean = true;
   private animationFrameId: number | null = null;
   private textureLoader: THREE.TextureLoader;
+  private orbitControls: OrbitControls | null = null;
+  private isPerspective: boolean = false;
+  private container: HTMLCanvasElement;
 
   private bufferConfigs: BufferConfig[] = [];
   private currentFrame: number = 0;
 
   constructor(container: HTMLCanvasElement, shader: Shader) {
+    this.container = container;
     this.scene = new THREE.Scene();
     this.textureLoader = new THREE.TextureLoader();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 1000);
+    this.camera.position.z = 5;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: container,
       antialias: true,
-      preserveDrawingBuffer: true,
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(1);
@@ -238,7 +243,7 @@ export class ShaderToyRunner {
     return `
       ${uniformsDeclaration}
       void main() {
-        gl_Position = vec4(position, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `;
   }
@@ -271,6 +276,10 @@ export class ShaderToyRunner {
     if (!this.isPlaying) return;
 
     this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
+
+    if (this.orbitControls) {
+      this.orbitControls.update();
+    }
 
     this.uniforms.iTime.value = (Date.now() - this.startTime) * 0.001;
     this.uniforms.iFrame.value = this.currentFrame++;
@@ -361,6 +370,17 @@ export class ShaderToyRunner {
     this.renderer.setSize(width, height);
     this.uniforms.iResolution.value.set(width, height, 1);
 
+    if (this.camera instanceof THREE.PerspectiveCamera) {
+      this.camera.aspect = width / height;
+    } else {
+      const aspect = width / height;
+      this.camera.left = -1;
+      this.camera.right = 1;
+      this.camera.top = 1 / aspect;
+      this.camera.bottom = -1 / aspect;
+    }
+    this.camera.updateProjectionMatrix();
+
     this.bufferConfigs.forEach((config) => {
       if (config.frontTarget) {
         config.frontTarget.setSize(width, height);
@@ -389,6 +409,57 @@ export class ShaderToyRunner {
       }
     }
 
+    if (this.orbitControls) {
+      this.orbitControls.dispose();
+    }
+
     this.renderer.dispose();
+  }
+
+  public enableOrbitControls(): void {
+    if (!this.orbitControls) {
+      this.camera.position.z = 1;
+      this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.orbitControls.enableDamping = true;
+      this.orbitControls.dampingFactor = 0.05;
+    }
+  }
+
+  public disableOrbitControls(): void {
+    if (this.orbitControls) {
+      this.orbitControls.dispose();
+      this.orbitControls = null;
+      this.camera.position.set(0, 0, 0);
+      this.camera.lookAt(0, 0, 0);
+    }
+  }
+
+  public toggleCameraType(): void {
+    this.isPerspective = !this.isPerspective;
+    const aspect = this.container.clientWidth / this.container.clientHeight;
+
+    // 保存当前相机的位置和朝向
+    const position = this.camera.position.clone();
+    const target = new THREE.Vector3();
+    this.camera.getWorldDirection(target);
+
+    if (this.isPerspective) {
+      this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+    } else {
+      this.camera = new THREE.OrthographicCamera(-1, 1, 1 / aspect, -1 / aspect, -100, 1000);
+    }
+
+    // 恢复相机的位置和朝向
+    this.camera.position.copy(position);
+    this.camera.lookAt(target);
+
+    // 如果有 OrbitControls，需要更新它的引用
+    if (this.orbitControls) {
+      this.orbitControls.dispose();
+      this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.orbitControls.enableDamping = true;
+      this.orbitControls.dampingFactor = 0.05;
+      this.orbitControls.screenSpacePanning = true;
+    }
   }
 }

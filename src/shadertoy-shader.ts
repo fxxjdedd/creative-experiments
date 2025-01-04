@@ -34,15 +34,15 @@ export class Shader {
     });
   }
 
-  addMainPass(code: string) {
+  addMainPass(code: string, options: Omit<ShaderPassOptions, "isSwappable" | "iterationsPerFrame"> = {}) {
     this.mainPass = {
       code,
       metadata: {
         isSwappable: false,
         iterationsPerFrame: 1,
-        customVertexShader: "",
-        customUniforms: {},
-        customPlaneGeometry: new THREE.PlaneGeometry(2, 2),
+        customVertexShader: options.customVertexShader ?? "",
+        customUniforms: options.customUniforms ?? {},
+        customPlaneGeometry: options.customPlaneGeometry ?? new THREE.PlaneGeometry(2, 2),
       },
     };
   }
