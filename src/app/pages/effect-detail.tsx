@@ -8,7 +8,6 @@ const EffectDetail = () => {
   const loaderRef = useRef<EffectLoader | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullWidth, setIsFullWidth] = useState(false);
-  const [orbitEnabled, setOrbitEnabled] = useState(false);
   const [isPerspective, setIsPerspective] = useState(false);
 
   useEffect(() => {
@@ -17,7 +16,6 @@ const EffectDetail = () => {
     const loader = new EffectLoader(containerRef.current);
     loaderRef.current = loader;
     loader.loadEffect(id);
-
     return () => {
       if (loaderRef.current) {
         loaderRef.current.dispose();
@@ -55,17 +53,6 @@ const EffectDetail = () => {
         window.dispatchEvent(new Event("resize"));
       }
     });
-  };
-
-  const handleToggleOrbit = () => {
-    if (loaderRef.current) {
-      if (orbitEnabled) {
-        loaderRef.current.disableOrbitControls();
-      } else {
-        loaderRef.current.enableOrbitControls();
-      }
-      setOrbitEnabled(!orbitEnabled);
-    }
   };
 
   const handleToggleCamera = () => {
@@ -112,12 +99,6 @@ const EffectDetail = () => {
               {isFullWidth ? "Shrink" : "Expand"}
             </button>
             <button
-              onClick={handleToggleOrbit}
-              className="px-6 py-2 text-sm font-medium text-white bg-zinc-800/90 hover:bg-zinc-700/90 rounded-full transition-colors backdrop-blur-sm"
-            >
-              {orbitEnabled ? "Disable Orbit" : "Enable Orbit"}
-            </button>
-            <button
               onClick={handleToggleCamera}
               className="px-6 py-2 text-sm font-medium text-white bg-zinc-800/90 hover:bg-zinc-700/90 rounded-full transition-colors backdrop-blur-sm"
             >
@@ -159,7 +140,7 @@ const EffectDetail = () => {
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
-                Orbit Controls: Enable/disable camera orbit controls
+                Orbit Controls: Use mouse to orbit around the scene
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>

@@ -28,6 +28,7 @@ export class EffectLoader {
 
       // 创建新的效果
       this.runner = new ShaderToyRunner(this.container, shader);
+      this.runner.enableOrbitControls();
     } catch (error) {
       console.error("Failed to load effect:", error);
     }
