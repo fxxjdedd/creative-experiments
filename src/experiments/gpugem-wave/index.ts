@@ -7,6 +7,7 @@ const buffer0 = /*glsl*/ `
 #define MAX_COUNT 4
 #define PI 3.14159265359
 #define TWO_PI 6.28318530718
+#define t iTime*0.5
 
 uniform int waveCount;
 uniform float waveLength[MAX_COUNT];
@@ -18,7 +19,7 @@ uniform float waveSteepnesses[MAX_COUNT];
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     vec2 uv = fragCoord/iResolution.xy;
-    uv *= 200.0;
+    uv *= 100.0;
 
     vec3 P = vec3(0.0);
     vec3 N = vec3(0.0);
@@ -33,7 +34,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
         float w = TWO_PI / l;
         float phi = s * w;
-        float phase = phi * iTime;
+        float phase = phi * t;
 
         float wa = w * a;
         float q  = steepness / (wa * float(waveCount));
@@ -59,24 +60,35 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 }`;
 
 const mainVert = /*glsl*/ `
+out vec2 v_uv;
+out vec3 v_pos;
 void main() {
-    vec3 wavePosition = texture2D(iGBuffer0, uv).xzy; // y is height in three.js
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position.xyz + wavePosition, 1.0);
+    vec3 wavePosition = texture2D(iGBuffer0, uv).xyz; // z is height direction
+    vec3 positionInView = (modelViewMatrix * vec4(position.xyz + wavePosition, 1.0)).xyz;
+    gl_Position = projectionMatrix * vec4(positionInView, 1.0);
+    v_uv = uv;
+    v_pos = positionInView;
 }`;
 
 const mainFrag = /*glsl*/ `
+in vec2 v_uv;
+in vec3 v_pos;
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    vec2 uv = fragCoord/iResolution.xy;
-    vec3 position = texture2D(iGBuffer0, uv).xyz;
-    vec3 normal = texture2D(iGBufferDebug0, uv).xyz;
+    vec3 normal = texture2D(iGBufferDebug0, v_uv).xyz;
+    mat4 normalMatrix = transpose(inverse(viewMatrix));
+    vec3 normalInView = normalize(normalMatrix * vec4(normal, 1.0)).xyz;
 
-    vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-    vec3 lightColor = vec3(1.0, 1.0, 1.0);
-    vec3 diffuse = max(dot(normal, lightDir), 0.0) * lightColor;
-    vec3 color = vec3(0.0, 0.0, 0.0);
-    color += diffuse;
+    vec3 wo = normalize(-v_pos);
+    vec3 wi = normalize(viewMatrix * vec4(1.0, 1.0, 1.0, 1.0)).xyz;
 
-    fragColor = vec4(color, 1.0);
+    float diffuse = max(dot(normalInView, wi), 0.0);
+    vec3 wh = normalize(wi + wo);
+    float specular = pow(max(dot(normalInView, wh), 0.0), 32.0);
+    vec3 ambient = vec3(0.2, 0.5, 1.0);
+
+    vec3 r = vec3(0.7) * (ambient + diffuse + 0.5 * specular);
+
+    fragColor = vec4(r, 1.0);
 }`;
 
 const shader = new Shader();

@@ -24,7 +24,8 @@ export class ShaderToyRunner {
     this.container = container;
     this.scene = new THREE.Scene();
     this.textureLoader = new THREE.TextureLoader();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 1000);
+    const aspect = container.clientWidth / container.clientHeight;
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1 / aspect, -1 / aspect, -100, 1000);
     this.camera.position.z = 5;
 
     this.renderer = new THREE.WebGLRenderer({
@@ -62,9 +63,11 @@ export class ShaderToyRunner {
     const numBuffers = bufferPasses.length; // 最后一个shader是输出
     for (let i = 0; i < numBuffers; i++) {
       const { code, metadata, initialSubPass } = bufferPasses[i];
+      const bufferWidth = container.clientWidth;
+      const bufferHeight = container.clientHeight;
 
       // 创建主缓冲区和debug缓冲区
-      const frontTarget = new THREE.WebGLRenderTarget(container.clientWidth, container.clientHeight, {
+      const frontTarget = new THREE.WebGLRenderTarget(bufferWidth, bufferHeight, {
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
         format: THREE.RGBAFormat,
@@ -75,7 +78,7 @@ export class ShaderToyRunner {
       // 如果是可交换的，创建后缓冲区
       let backTarget = null;
       if (metadata.isSwappable) {
-        backTarget = new THREE.WebGLRenderTarget(container.clientWidth, container.clientHeight, {
+        backTarget = new THREE.WebGLRenderTarget(bufferWidth, bufferHeight, {
           minFilter: THREE.NearestFilter,
           magFilter: THREE.NearestFilter,
           format: THREE.RGBAFormat,
@@ -121,11 +124,6 @@ export class ShaderToyRunner {
       const geometry = metadata.customPlaneGeometry;
       const mesh = new THREE.Mesh(geometry, material);
 
-      // 计算缩放比例使mesh适应camera视野
-      const scaleX = 2 / geometry.parameters.width;
-      const scaleY = 2 / geometry.parameters.height;
-      mesh.scale.set(scaleX, scaleY, 1);
-
       // 如果有初始化子pass，创建它的材质
       let initialMesh = null;
       if (initialSubPass) {
@@ -136,7 +134,6 @@ export class ShaderToyRunner {
           glslVersion: THREE.GLSL3,
         });
         initialMesh = new THREE.Mesh(geometry, initialMaterial);
-        initialMesh.scale.set(scaleX, scaleY, 1);
       }
 
       this.bufferConfigs.push({
@@ -175,11 +172,6 @@ export class ShaderToyRunner {
 
     const finalGeometry = mainPass.metadata.customPlaneGeometry;
     const finalMesh = new THREE.Mesh(finalGeometry, finalMaterial);
-
-    // 计算缩放比例使finalMesh适应camera视野
-    const finalScaleX = 2 / finalGeometry.parameters.width;
-    const finalScaleY = 2 / finalGeometry.parameters.height;
-    finalMesh.scale.set(finalScaleX, finalScaleY, 1);
 
     this.bufferConfigs.push({
       metadata: mainPass.metadata,
