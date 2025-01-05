@@ -20,6 +20,8 @@ export class Shader {
     metadata: Required<ShaderPassOptions>;
   } | null = null;
   private textures: string[] = [];
+  private envMap: string = "";
+
   addGBufferPass(code: string, options: ShaderPassOptions = {}, initialSubPass?: string) {
     this.bufferPasses.push({
       code,
@@ -49,6 +51,14 @@ export class Shader {
 
   addTexture(texture: string) {
     this.textures.push(texture);
+  }
+
+  setEnvMap(envMap: string) {
+    this.envMap = envMap;
+  }
+
+  getEnvMap() {
+    return this.envMap;
   }
 
   getBufferPasses() {

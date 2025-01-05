@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { VFX_UTILS } from "./shadertoy-utils";
 import { BufferConfig, Shader } from "./shadertoy-shader";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 
 export class ShaderToyRunner {
   private scene: THREE.Scene;
@@ -13,6 +14,7 @@ export class ShaderToyRunner {
   private isPlaying: boolean = true;
   private animationFrameId: number | null = null;
   private textureLoader: THREE.TextureLoader;
+  private exrLoader: EXRLoader;
   private orbitControls: OrbitControls | null = null;
   private isPerspective: boolean = false;
   private container: HTMLCanvasElement;
@@ -24,6 +26,7 @@ export class ShaderToyRunner {
     this.container = container;
     this.scene = new THREE.Scene();
     this.textureLoader = new THREE.TextureLoader();
+    this.exrLoader = new EXRLoader();
     const aspect = container.clientWidth / container.clientHeight;
     this.camera = new THREE.OrthographicCamera(-1, 1, 1 / aspect, -1 / aspect, -100, 1000);
     this.camera.position.z = 5;
@@ -46,7 +49,16 @@ export class ShaderToyRunner {
       },
       iMouse: { value: new THREE.Vector4() },
       iFrame: { value: 0 },
+      envMap: { value: null },
     };
+
+    // 加载环境贴图
+    const envMap = shader.getEnvMap();
+    if (envMap) {
+      this.exrLoader.load(envMap, (texture) => {
+        this.uniforms.envMap.value = texture;
+      });
+    }
 
     // 设置外部纹理uniforms
     const externalTextures = shader.getTextures();
@@ -200,6 +212,7 @@ export class ShaderToyRunner {
       uniform vec3 iResolution;
       uniform vec4 iMouse;
       uniform int iFrame;
+      uniform sampler2D envMap;
     `;
 
     const textureUniforms = Array(numTextures)
@@ -404,7 +417,7 @@ export class ShaderToyRunner {
     });
 
     for (const key in this.uniforms) {
-      if (key.startsWith("iChannel") && this.uniforms[key].value instanceof THREE.Texture) {
+      if ((key.startsWith("iChannel") || key === "envMap") && this.uniforms[key].value instanceof THREE.Texture) {
         this.uniforms[key].value.dispose();
       }
     }

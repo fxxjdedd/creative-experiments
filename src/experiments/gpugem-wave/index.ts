@@ -71,23 +71,43 @@ void main() {
 }`;
 
 const mainFrag = /*glsl*/ `
+
+#define PI 3.14159265359
+#define TWO_PI 6.28318530718
+
 in vec2 v_uv;
 in vec3 v_pos;
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 normal = texture2D(iGBufferDebug0, v_uv).xyz;
     mat4 normalMatrix = transpose(inverse(viewMatrix));
     vec3 normalInView = normalize(normalMatrix * vec4(normal, 1.0)).xyz;
+    vec3 normalInWorld = normalize(normal);
 
+    vec3 lightSource = vec3(0.5, 0.3, 1.0);
+
+    vec3 wi = normalize(viewMatrix * vec4(lightSource, 1.0)).xyz;
     vec3 wo = normalize(-v_pos);
-    vec3 wi = normalize(viewMatrix * vec4(1.0, 1.0, 1.0, 1.0)).xyz;
+    vec3 wh = normalize(wi + wo);
+    // sample env map in world space
+    vec3 woInWorld = normalize(vec3(inverse(viewMatrix) * vec4(wo, 0.0)));
+
+    vec3 reflectDir = reflect(-woInWorld, normalInWorld);
+    vec2 sphereCoord = vec2(
+        atan(reflectDir.z, reflectDir.x),
+        acos(reflectDir.y)
+    );
+
+    vec2 envMapUV = vec2(
+        sphereCoord.x/TWO_PI + 0.5, // phi range from 0 to 2pi
+        sphereCoord.y/PI // theta range from 0 to pi
+    );
+    vec3 envColor = texture2D(envMap, envMapUV).rgb;
 
     float diffuse = max(dot(normalInView, wi), 0.0);
-    vec3 wh = normalize(wi + wo);
     float specular = pow(max(dot(normalInView, wh), 0.0), 32.0);
-    vec3 ambient = vec3(0.2, 0.5, 1.0);
 
-    vec3 r = vec3(0.7) * (ambient + diffuse + 0.5 * specular);
 
+    vec3 r = envColor * (diffuse + 0.5 * specular);
     fragColor = vec4(r, 1.0);
 }`;
 
@@ -115,5 +135,6 @@ shader.addMainPass(mainFrag, {
   customVertexShader: mainVert,
   customPlaneGeometry: new PlaneGeometry(100, 100, 200, 200),
 });
+shader.setEnvMap("/skybox/syferfontein_1d_clear_puresky_1k_blurred.exr");
 
 export default shader;

@@ -8,4 +8,9 @@
 ## Diffusion Reaction in one value
 
 在一个 for 循环里完成 U 和 V 的迭代结果用一个 value 来表示
-![Reaction Diffusion](/public/thumbnails/spotted2.png)
+![Reaction Diffusion](/public/gif/spotted2.gif)
+
+## GPU Gem Wave
+
+高度场波浪模拟
+![Reaction Diffusion](/public/gif/gpugem-wave.gif)
