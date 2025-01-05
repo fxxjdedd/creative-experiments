@@ -255,7 +255,7 @@ export default function Profile() {
             <div className="space-y-2 flex flex-col items-center w-full">
               <img 
                 src="/profile/awe.png" 
-                className="w-full max-w-[800px] rounded-lg shadow-md object-cover"
+                className="w-full max-w-[480px] rounded-lg shadow-md object-cover"
               />
               <p className="text-sm text-zinc-600 text-center">
                  可以看做一个游戏，支持鼠标键盘控制任务在场景中移动，观看各种智慧室内场景的效果
