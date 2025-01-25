@@ -20,6 +20,12 @@ const effects = [
     description: "GPU Gem Wave",
     thumbnail: "/thumbnails/gpugem-wave.png",
   },
+  {
+    id: "meteor",
+    title: "Meteor Effect",
+    description: "流星效果",
+    thumbnail: "/thumbnails/meteor.png",
+  },
   // {
   //   id: "smoke",
   //   title: "Smoke Effect",
