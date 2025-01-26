@@ -1,3 +1,4 @@
+```c
 import { Shader } from "@/shadertoy-shader";
 
 const main = /*glsl*/ `
@@ -18,7 +19,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     for(float i = 0.0; i < 10.0; i++) {
         // Calculate meteor trail position
         v = p + cos(i * i + (t + p.x * 0.1) * 0.03 + i * vec2(11, 9)) * 5.0;
-        
+
         // Accumulate color with trail effect
         vec4 color = (cos(sin(i) * vec4(1, 2, 3, 1)) + 1.0) * exp(sin(i * i + t));
         float trail = length(max(v, vec2(v.x * f * 0.02, v.y)));
@@ -33,3 +34,4 @@ const shader = new Shader();
 shader.addMainPass(main);
 
 export default shader;
+```

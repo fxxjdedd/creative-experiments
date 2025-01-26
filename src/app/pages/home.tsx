@@ -26,6 +26,12 @@ const effects = [
     description: "流星效果",
     thumbnail: "/thumbnails/meteor.png",
   },
+  {
+    id: "particles-1",
+    title: "Particles 1",
+    description: "粒子效果1",
+    thumbnail: "/thumbnails/particles-1.png",
+  },
   // {
   //   id: "smoke",
   //   title: "Smoke Effect",
