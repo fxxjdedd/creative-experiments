@@ -30,7 +30,7 @@ const effects = [
     id: "particles-1",
     title: "Particles 1",
     description: "粒子效果1",
-    thumbnail: "/thumbnails/particles-1.png",
+    thumbnail: "/thumbnails/particles.jpg",
   },
   // {
   //   id: "smoke",

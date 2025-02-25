@@ -2,7 +2,8 @@ import { Shader } from "@/shadertoy-shader";
 
 const bufferA = /*glsl*/ `
 #define PI2 6.28318530718
-#define PARTICLE_COUNT 100.0
+#define t iTime*0.5
+#define PARTICLE_COUNT 400.0
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // 标准化UV坐标，使其以屏幕中心为原点
@@ -15,17 +16,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 p = (fragCoord.xy - iResolution.xy * 0.5) / iResolution.y * 0.8;
     
     // 添加背景纹理
-    color += texture(iBackBuffer, p / 0.49 * iResolution.x / iResolution.y + 0.5).xyz * 0.9 - 0.002;
-
-    // 粒子循环
     for(float i = 0.0; i < PARTICLE_COUNT; i++) {
         // 计算粒子位置
         vec2 particlePos = mod(
-            iTime / 9.0 + tan(i / PARTICLE_COUNT) + 1.0,
+            t / 9.0 + tan(i / PARTICLE_COUNT) + 1.0,
             0.35
         ) * sin(
             i + PI2 * vec2(0.0, 0.25) + 
-            0.1 * normalize(vec2(i, 0.1 * iTime + 1.0))
+            0.1 * normalize(vec2(i, 0.1 * t + 1.0))
         );
         
         // 计算到粒子的距离
@@ -34,9 +32,10 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         // 添加粒子颜色贡献
         color += vec3(
             0.0,                                      // R
-            0.5,                                      // G
+            0.0,                                      // G
             0.6 * exp(-200.0 * (dist + 0.04) *       // B
                 length(p - particlePos))
+            
         );
     }
 
@@ -49,11 +48,11 @@ const main = /*glsl*/ `
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
     vec4 original = texture2D(iGBuffer0, uv);  // Buffer A的原始结果
-    fragColor = original;
+    fragColor = vec4(vec3(original.z), 1.0);
 }`;
 
 const shader = new Shader();
-shader.addGBufferPass(bufferA, { isSwappable: true, iterationsPerFrame: 1 });
+shader.addGBufferPass(bufferA);
 shader.addMainPass(main);
 
 export default shader;

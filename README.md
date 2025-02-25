@@ -18,3 +18,7 @@
 ## 流星
 
 ![Reaction Diffusion](/public/gif/meteor.gif)
+
+## 扩散粒子
+
+![](/public/gif/particles.gif)
