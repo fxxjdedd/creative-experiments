@@ -32,6 +32,12 @@ const effects = [
     description: "粒子效果1",
     thumbnail: "/thumbnails/particles.jpg",
   },
+  {
+    id: "night-earth",
+    title: "Night Earth",
+    description: "夜晚地球",
+    thumbnail: "/thumbnails/night-earth.png",
+  },
   // {
   //   id: "smoke",
   //   title: "Smoke Effect",
