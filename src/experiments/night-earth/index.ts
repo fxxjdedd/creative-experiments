@@ -132,7 +132,7 @@ float rayMarch(vec3 ro, vec3 rd) {
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = (fragCoord.xy - iResolution.xy/2.0)/iResolution.y;
 
-    vec3 ro = vec3(-1.5, 1.5, -3.0);
+    vec3 ro = vec3(-1.5, 1.0, -3.0);
     vec3 rd = normalize(vec3(uv, 1.0));
 
     float d = rayMarch(ro, rd);
@@ -164,15 +164,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         
         vec2 sphereUv = vec2(-(phi+0.3*PI), theta);
 
-        // Sample normal map and convert to world space
+        // Sample normal map and enhance the relief
         vec3 normalMap = texture2D(iChannel1, sphereUv).xyz * 2.0 - 1.0;
+        normalMap.xy *= 32.5; // Increase the strength of surface normal deviation
+        normalMap = normalize(normalMap); // Renormalize after scaling
         
         // Create TBN matrix for normal mapping
         vec3 tangent = normalize(cross(normal, vec3(0.0, 1.0, 0.0)));
         vec3 bitangent = normalize(cross(normal, tangent));
         mat3 TBN = mat3(tangent, bitangent, normal);
         
-        // Apply normal map
+        // Apply enhanced normal map
         normal = normalize(TBN * normalMap);
 
         vec3 texColor = texture2D(iChannel0, sphereUv).rgb;
@@ -184,7 +186,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         
         // Add directional light with normal mapping
         vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-        float ambient = 0.5;
+        float ambient = 1.5;
         float diffuse = max(dot(normal, lightDir), 0.0);
         
         // Add specular reflection
