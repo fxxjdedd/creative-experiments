@@ -138,53 +138,69 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float d = rayMarch(ro, rd);
     vec3 color;
     if(d < MAX_DIST) {
-      vec3 pos = ro + rd * d;
-      vec3 normal = getNormal(pos);
+        vec3 pos = ro + rd * d;
+        vec3 normal = getNormal(pos);
 
-      // Add axial tilt (23.5 degrees)
-      float tiltAngle = -10.5 * PI / 180.0;
-      mat3 tiltMatrix = mat3(
-        1.0, 0.0, 0.0,
-        0.0, cos(tiltAngle), -sin(tiltAngle),
-        0.0, sin(tiltAngle), cos(tiltAngle)
-      );
-      normal = tiltMatrix * normal;
+        // Add axial tilt
+        float tiltAngle = -13.5 * PI / 180.0;
+        mat3 tiltMatrix = mat3(
+            1.0, 0.0, 0.0,
+            0.0, cos(tiltAngle), -sin(tiltAngle),
+            0.0, sin(tiltAngle), cos(tiltAngle)
+        );
+        normal = tiltMatrix * normal;
 
-      float theta = atan(length(normal.xz), normal.y) / PI;
-      theta = (theta + 1.0) / 2.0;
-      theta *= 2.0;
-      theta = 1.0 - theta;
-      
-      // Add rotation based on time
-      float rotationSpeed = 0.01; // Controls rotation speed
-      float rotation = iTime * rotationSpeed;
-      float phi = atan(normal.x, normal.z) / PI; // -Pi~Pi => -1.0~1.0
-      phi = (phi + 1.0) / 2.0; // -1.0~1.0 => 0.0 => 1.0
-      phi = fract(phi + rotation); // Add rotation
-      
-      vec2 sphereUv = vec2(-(phi+0.3*PI), theta);
+        float theta = atan(length(normal.xz), normal.y) / PI;
+        theta = (theta + 1.0) / 2.0;
+        theta *= 2.0;
+        theta = 1.0 - theta;
+        
+        // Add rotation based on time
+        float rotationSpeed = 0.01;
+        float rotation = iTime * rotationSpeed;
+        float phi = atan(normal.x, normal.z) / PI;
+        phi = (phi + 1.0) / 2.0;
+        phi = fract(phi + rotation);
+        
+        vec2 sphereUv = vec2(-(phi+0.3*PI), theta);
 
-      vec3 texColor = texture2D(iChannel0, sphereUv).rgb;
-      
-      // Enhance city lights while keeping dark areas dark
-      float luminance = dot(texColor, vec3(0.299, 0.587, 0.114));
-      float lightIntensity = pow(luminance, 0.5); // Make bright areas even brighter
-      
-      // Add directional light only to non-light areas
-      vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-      float ambient = 0.5;
-      float diffuse = max(dot(normal, lightDir), 0.0);
-      float lighting = ambient + diffuse * 0.3;
-      
-      // Combine both effects
-      color = texColor * mix(lighting, 2.0, lightIntensity);
+        // Sample normal map and convert to world space
+        vec3 normalMap = texture2D(iChannel1, sphereUv).xyz * 2.0 - 1.0;
+        
+        // Create TBN matrix for normal mapping
+        vec3 tangent = normalize(cross(normal, vec3(0.0, 1.0, 0.0)));
+        vec3 bitangent = normalize(cross(normal, tangent));
+        mat3 TBN = mat3(tangent, bitangent, normal);
+        
+        // Apply normal map
+        normal = normalize(TBN * normalMap);
 
-      // Add atmospheric glow
-      float fresnel = pow(1.0 - max(dot(normal, -rd), 0.0), 4.0);
-      vec3 atmosphereColor = vec3(0.1, 0.2, 0.4); // Slight blue tint
-      color += fresnel * atmosphereColor * 0.3;
+        vec3 texColor = texture2D(iChannel0, sphereUv).rgb;
+        float specularIntensity = texture2D(iChannel2, sphereUv).r; // Sample specular map
+        
+        // Enhance city lights while keeping dark areas dark
+        float luminance = dot(texColor, vec3(0.299, 0.587, 0.114));
+        float lightIntensity = pow(luminance, 1.0);
+        
+        // Add directional light with normal mapping
+        vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+        float ambient = 0.5;
+        float diffuse = max(dot(normal, lightDir), 0.0);
+        
+        // Add specular reflection
+        vec3 viewDir = -rd;
+        vec3 halfDir = normalize(lightDir + viewDir);
+        float specular = pow(max(dot(normal, halfDir), 0.0), 32.0) * specularIntensity;
+        float lighting = ambient + diffuse * 0.3;
+        
+        // Combine all lighting effects
+        color = texColor * mix(lighting, 2.0, lightIntensity);
+        color += specular * vec3(0.3, 0.4, 0.5) * 1.5; // Add blue-tinted specular highlights
 
-    //   color = pos;
+        // Add atmospheric glow
+        float fresnel = pow(1.0 - max(dot(normal, -rd), 0.0), 4.0);
+        vec3 atmosphereColor = vec3(0.1, 0.2, 0.4);
+        color += fresnel * atmosphereColor * 0.3;
     } else {
       // Add starry background
       vec2 uv = fragCoord.xy/iResolution.xy * 2.0 - 1.0;
@@ -199,5 +215,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 const shader = new Shader();
 shader.addMainPass(main);
 shader.addTexture("/earth/8k_earth_nightmap.jpg");
+shader.addTexture("/earth/8k_earth_normal_map.jpg");
+shader.addTexture("/earth/8k_earth_specular_map.jpg");
 
 export default shader;
